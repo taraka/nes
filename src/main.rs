@@ -11,6 +11,6 @@ fn main() {
     cpu.reset();
 
     println!("{:?}", cpu);
-    ram.print_range(0x8000..0x9000);
+    ram.print_range(0x8000..0x8100);
     
 }

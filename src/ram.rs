@@ -16,10 +16,13 @@ impl Ram {
         }
     }
 
-    pub fn print_range(r: std::ops::Range<u16>) {
+    pub fn print_range(&self, r: std::ops::Range<u16>) {
         for i in r {
+            if i % 0x10 == 0 {
+                print!("{:#04x}:   ", i);
+            }
             print!("{:#02x} ", self.read(i).unwrap());
-            if i % 64 == 0 {
+            if (i+1) % 0x10 == 0 {
                 print!("\n");
             }
         }

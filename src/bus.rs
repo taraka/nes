@@ -8,14 +8,6 @@ pub struct Bus <'a> {
     devices: Vec<&'a dyn BusDevice>,
 }
 
-//Don't print the bus
-use core::fmt::Debug;
-impl Debug for Bus <'_> {
-    fn fmt(&self, _f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        Ok(())
-    }
-}
-
 impl <'a> Bus <'a> {
     pub fn new() -> Self {
         Self {
