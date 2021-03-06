@@ -5,7 +5,7 @@ pub trait BusDevice {
 
 
 pub struct Bus <'a> {
-    devices: Vec<&'a dyn BusDevice>,
+    devices: Vec<&'a mut dyn BusDevice>,
 }
 
 impl <'a> Bus <'a> {
@@ -15,11 +15,17 @@ impl <'a> Bus <'a> {
         }
     }
 
-    pub fn connect(&mut self, dev: &'a dyn BusDevice) {
+    pub fn connect(&mut self, dev: &'a mut dyn BusDevice) {
         self.devices.push(dev);
     }
 
     pub fn read(&self, addr: u16) -> u8 {
         self.devices.iter().find_map(|dev| dev.read(addr)).unwrap_or(0)
+    }
+
+    pub fn write(&mut self, addr: u16, data: u8) {
+        for dev in self.devices.iter_mut() {
+            dev.write(addr, data);
+        }
     }
 }
