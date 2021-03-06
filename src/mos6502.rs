@@ -20,8 +20,8 @@ enum AddrModeResult {
 #[derive(Clone,Copy)]
 struct Op <'a> {
     name: &'a str,
-    op: fn(&mut Cpu<'a>, AddrModeResult),
-    addr_mode: fn(&mut Cpu<'a>) -> AddrModeResult,
+    op: fn(&mut Cpu<'a>, (AddrModeResult, u8)),
+    addr_mode: fn(&mut Cpu<'a>) -> (AddrModeResult, u8),
     cycles: u8
 }
 
@@ -116,20 +116,121 @@ impl <'a> Cpu <'a> {
     }
 
     // Address modes
-    fn IMP(&mut self) -> AddrModeResult {
-        return AddrModeResult::Data(self.a)
+    fn IMP(&mut self) -> (AddrModeResult, u8) {
+        return (AddrModeResult::Data(self.a), 0)
     }
 
-    fn IMM(&mut self) -> AddrModeResult {
-        return AddrModeResult::Data(self.a)
+    fn IMM(&mut self) -> (AddrModeResult, u8) {
+        self.pc +=1;
+        (AddrModeResult::Abs(self.pc), 0)
+    }
+
+    fn ZP0(&mut self) -> (AddrModeResult, u8) {
+        let addr = self.bus.read(self.pc);
+        self.pc +=1;
+        (AddrModeResult::Abs(addr as u16), 0)
+    }
+
+    fn ZPX(&mut self) -> (AddrModeResult, u8) {
+        let addr = self.bus.read(self.pc + self.x as u16);
+        self.pc +=1;
+        (AddrModeResult::Abs(addr as u16), 0)
+    }
+
+    fn ZPY(&mut self) -> (AddrModeResult, u8) {
+        let addr = self.bus.read(self.pc + self.y as u16);
+        self.pc +=1;
+        (AddrModeResult::Abs(addr as u16), 0)
+    }
+
+    fn ABS(&mut self) -> (AddrModeResult, u8) {
+        let lsb = self.bus.read(self.pc) as u16;
+        self.pc +=1;
+        let msb = self.bus.read(self.pc) as u16;
+        self.pc +=1;
+        (AddrModeResult::Abs((msb << 8) + lsb), 0)
+    }
+
+    fn ABX(&mut self) -> (AddrModeResult, u8) {
+        let lsb = self.bus.read(self.pc) as u16;
+        self.pc +=1;
+        let msb = self.bus.read(self.pc) as u16;
+        self.pc +=1;
+        let addr = (msb << 8) + lsb + self.x as u16;
+
+        // Have we changed page?
+        let c = if (addr & 0xff00) != (msb<<8) {
+            1
+        } else {
+            0
+        };
+
+        (AddrModeResult::Abs(addr), c)
+    }
+
+    fn IND(&mut self) -> (AddrModeResult, u8) {
+        let ptr_lsb = self.bus.read(self.pc) as u16;
+        self.pc +=1;
+        let ptr_msb = self.bus.read(self.pc) as u16;
+        self.pc +=1;
+        let ptr = (ptr_msb << 8) + ptr_lsb;
+
+
+        // Check for Bug
+        if ptr_lsb == 0x00ff {
+            (AddrModeResult::Abs(((self.bus.read(ptr & 0xff00) as u16) << 8) + self.bus.read(ptr) as u16), 0)
+        } 
+        else {
+            (AddrModeResult::Abs(((self.bus.read(ptr+1)as u16) << 8) + self.bus.read(ptr) as u16), 0)
+        }
+    }
+
+    fn IZX(&mut self) -> (AddrModeResult, u8) {
+        let addr = self.bus.read(self.pc) as u16;
+        self.pc +=1;
+
+        let lsb = self.bus.read(addr + self.x as u16) as u16;
+        let msb = self.bus.read(addr + self.x as u16 + 1) as u16;
+
+        (AddrModeResult::Abs(msb << 8 + lsb), 0)
+    }
+
+    fn IZY(&mut self) -> (AddrModeResult, u8) {
+        let ptr = self.bus.read(self.pc) as u16;
+        self.pc +=1;
+
+        let lsb = self.bus.read(ptr) as u16;
+        let msb = self.bus.read(ptr+ 1) as u16;
+
+        let addr = msb << 8 + lsb + self.y as u16;
+
+        // Have we changed page?
+        let c = if (addr & 0xff00) != (msb<<8) {
+            1
+        } else {
+            0
+        };
+
+        (AddrModeResult::Abs(addr), c)
+    }
+
+    fn REL(&mut self) -> (AddrModeResult, u8) {
+        let mut addr = self.bus.read(self.pc) as u16;
+        self.pc +=1;
+
+        if addr & 0x80 != 0 {
+            addr |= 0xff00;
+        }
+
+        (AddrModeResult::Rel(addr), 0)
     }
 
     // Operations
-    fn XXX(&mut self, amr: AddrModeResult) {
+    fn XXX(&mut self, amr: (AddrModeResult, u8)) {
 
     }
 
-    fn BRK(&mut self, amr: AddrModeResult) {
+    fn BRK(&mut self, amr: (AddrModeResult, u8)) {
 
     }
 
