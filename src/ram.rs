@@ -15,6 +15,16 @@ impl Ram {
             memory: data,
         }
     }
+
+    pub fn print_range(r: std::ops::Range<u16>) {
+        for i in r {
+            print!("{:#02x} ", self.read(i).unwrap());
+            if i % 64 == 0 {
+                print!("\n");
+            }
+        }
+        print!("\n");
+    }
 }
 
 impl BusDevice for Ram {
