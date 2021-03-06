@@ -12,16 +12,16 @@ enum Flag {
 }
 
 enum AddrModeResult {
-    Data(u8),
-    Abs(u16),
+    Imm(),
+    Abs(u16, u8),
     Rel(u16)
 }
 
 #[derive(Clone,Copy)]
 struct Op <'a> {
     name: &'a str,
-    op: fn(&mut Cpu<'a>, (AddrModeResult, u8)),
-    addr_mode: fn(&mut Cpu<'a>) -> (AddrModeResult, u8),
+    op: fn(&mut Cpu<'a>, AddrModeResult) -> u8,
+    addr_mode: fn(&mut Cpu<'a>) -> AddrModeResult,
     cycles: u8
 }
 
@@ -116,42 +116,42 @@ impl <'a> Cpu <'a> {
     }
 
     // Address modes
-    fn IMP(&mut self) -> (AddrModeResult, u8) {
-        return (AddrModeResult::Data(self.a), 0)
+    fn IMP(&mut self) -> AddrModeResult {
+        AddrModeResult::Imm()
     }
 
-    fn IMM(&mut self) -> (AddrModeResult, u8) {
+    fn IMM(&mut self) -> AddrModeResult {
         self.pc +=1;
-        (AddrModeResult::Abs(self.pc), 0)
+        AddrModeResult::Abs(self.pc, 0)
     }
 
-    fn ZP0(&mut self) -> (AddrModeResult, u8) {
+    fn ZP0(&mut self) -> AddrModeResult {
         let addr = self.bus.read(self.pc);
         self.pc +=1;
-        (AddrModeResult::Abs(addr as u16), 0)
+        AddrModeResult::Abs(addr as u16, 0)
     }
 
-    fn ZPX(&mut self) -> (AddrModeResult, u8) {
+    fn ZPX(&mut self) -> AddrModeResult {
         let addr = self.bus.read(self.pc + self.x as u16);
         self.pc +=1;
-        (AddrModeResult::Abs(addr as u16), 0)
+        AddrModeResult::Abs(addr as u16, 0)
     }
 
-    fn ZPY(&mut self) -> (AddrModeResult, u8) {
+    fn ZPY(&mut self) -> AddrModeResult {
         let addr = self.bus.read(self.pc + self.y as u16);
         self.pc +=1;
-        (AddrModeResult::Abs(addr as u16), 0)
+        AddrModeResult::Abs(addr as u16, 0)
     }
 
-    fn ABS(&mut self) -> (AddrModeResult, u8) {
+    fn ABS(&mut self) -> AddrModeResult {
         let lsb = self.bus.read(self.pc) as u16;
         self.pc +=1;
         let msb = self.bus.read(self.pc) as u16;
         self.pc +=1;
-        (AddrModeResult::Abs((msb << 8) + lsb), 0)
+        AddrModeResult::Abs((msb << 8) + lsb, 0)
     }
 
-    fn ABX(&mut self) -> (AddrModeResult, u8) {
+    fn ABX(&mut self) -> AddrModeResult {
         let lsb = self.bus.read(self.pc) as u16;
         self.pc +=1;
         let msb = self.bus.read(self.pc) as u16;
@@ -165,10 +165,10 @@ impl <'a> Cpu <'a> {
             0
         };
 
-        (AddrModeResult::Abs(addr), c)
+        AddrModeResult::Abs(addr, c)
     }
 
-    fn IND(&mut self) -> (AddrModeResult, u8) {
+    fn IND(&mut self) -> AddrModeResult {
         let ptr_lsb = self.bus.read(self.pc) as u16;
         self.pc +=1;
         let ptr_msb = self.bus.read(self.pc) as u16;
@@ -178,24 +178,24 @@ impl <'a> Cpu <'a> {
 
         // Check for Bug
         if ptr_lsb == 0x00ff {
-            (AddrModeResult::Abs(((self.bus.read(ptr & 0xff00) as u16) << 8) + self.bus.read(ptr) as u16), 0)
+            AddrModeResult::Abs(((self.bus.read(ptr & 0xff00) as u16) << 8) + self.bus.read(ptr) as u16, 0)
         } 
         else {
-            (AddrModeResult::Abs(((self.bus.read(ptr+1)as u16) << 8) + self.bus.read(ptr) as u16), 0)
+            AddrModeResult::Abs(((self.bus.read(ptr+1)as u16) << 8) + self.bus.read(ptr) as u16, 0)
         }
     }
 
-    fn IZX(&mut self) -> (AddrModeResult, u8) {
+    fn IZX(&mut self) -> AddrModeResult {
         let addr = self.bus.read(self.pc) as u16;
         self.pc +=1;
 
         let lsb = self.bus.read(addr + self.x as u16) as u16;
         let msb = self.bus.read(addr + self.x as u16 + 1) as u16;
 
-        (AddrModeResult::Abs(msb << 8 + lsb), 0)
+        AddrModeResult::Abs(msb << 8 + lsb, 0)
     }
 
-    fn IZY(&mut self) -> (AddrModeResult, u8) {
+    fn IZY(&mut self) -> AddrModeResult {
         let ptr = self.bus.read(self.pc) as u16;
         self.pc +=1;
 
@@ -211,10 +211,10 @@ impl <'a> Cpu <'a> {
             0
         };
 
-        (AddrModeResult::Abs(addr), c)
+        AddrModeResult::Abs(addr, c)
     }
 
-    fn REL(&mut self) -> (AddrModeResult, u8) {
+    fn REL(&mut self) -> AddrModeResult {
         let mut addr = self.bus.read(self.pc) as u16;
         self.pc +=1;
 
@@ -222,17 +222,43 @@ impl <'a> Cpu <'a> {
             addr |= 0xff00;
         }
 
-        (AddrModeResult::Rel(addr), 0)
+        AddrModeResult::Rel(addr)
+    }
+
+    fn fetch(&mut self, amr: &AddrModeResult) -> u8 {
+        match amr {
+            AddrModeResult::Imm() => self.a,
+            AddrModeResult::Abs(addr, _) => self.bus.read(*addr),
+            AddrModeResult::Rel(addr) => 0 // TODO
+        }
+    }
+
+    fn additional_cycles(&self, amr: &AddrModeResult, add: u8) -> u8 {
+        match amr {
+            AddrModeResult::Imm() => return 0,
+            AddrModeResult::Abs(_, c) => c & add,
+            AddrModeResult::Rel(_) => return 0
+        }
     }
 
     // Operations
-    fn XXX(&mut self, amr: (AddrModeResult, u8)) {
-
+    fn AND(&mut self, amr: AddrModeResult) -> u8 {
+        self.a = self.a & self.fetch(&amr);
+        self.set_flag(Flag::Z, self.a == 0);
+        self.set_flag(Flag::N, self.a & 80 != 0);
+        return self.additional_cycles(&amr, 1);
     }
 
-    fn BRK(&mut self, amr: (AddrModeResult, u8)) {
-
+    fn BRK(&mut self, amr: AddrModeResult) -> u8 {
+0
     }
+
+
+    fn XXX(&mut self, amr: AddrModeResult) -> u8 {
+0
+    }
+
+    
 
     fn get_op_matrix() -> [Op<'a>; 1] {
         [
