@@ -11,6 +11,7 @@ enum Flag {
     N = (1 << 7), // Negative
 }
 
+#[derive(Debug)]
 enum AddrModeResult {
     Imp(),
     Abs(u16, u8),
@@ -40,8 +41,15 @@ pub struct Cpu<'a> {
 //Don't print the bus
 use core::fmt::Debug;
 impl Debug for Cpu <'_> {
-    fn fmt(&self, _f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        Ok(())
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Cpu")
+            .field("a", &self.a)
+            .field("x", &self.x)
+            .field("y", &self.y)
+            .field("pc", &self.pc)
+            .field("sp", &self.sp)
+            .field("wait", &self.wait)
+            .finish()
     }
 }
 
@@ -60,6 +68,14 @@ impl <'a> Cpu <'a> {
         }
     }
 
+    pub fn next_inst(&mut self) {
+        while self.wait > 0 {
+            self.clock();
+        }
+
+        self.clock();
+    }
+
     pub fn clock(&mut self) {
         if self.wait > 0 {
             self.wait -= 1;
@@ -71,6 +87,7 @@ impl <'a> Cpu <'a> {
         self.pc += 1;
 
         let op = self.lookup[opcode as usize];
+        println!("{}", op.name);
         let amr = (op.addr_mode)(self);
         let additional_cycles = (op.op)(self, amr);
         self.wait = op.cycles + additional_cycles - 1;
@@ -265,7 +282,7 @@ impl <'a> Cpu <'a> {
         let lsb = self.bus.read(ptr) as u16;
         let msb = self.bus.read(ptr+ 1) as u16;
 
-        let addr = msb << 8 + lsb + self.y as u16;
+        let addr = (msb << 8) + lsb + self.y as u16;
 
         // Have we changed page?
         let c = if (addr & 0xff00) != (msb<<8) {
@@ -683,6 +700,7 @@ impl <'a> Cpu <'a> {
 
     fn LDA(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.fetch(&amr);
+        println!("{:?} {:?}", amr, self.a);
         self.set_flag(Flag::Z, self.a == 0x00);
         self.set_flag(Flag::N, self.a & 0x80 != 0x00);
         return 0;
