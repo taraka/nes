@@ -94,38 +94,52 @@ impl <'a> Cpu <'a> {
         self.wait = 8;
     }
 
+    fn push(&mut self, value: u8) {
+        self.bus.write(0x0100 + self.sp as u16, value);
+        self.sp -= 1;
+    }
+
+    fn pop(&mut self) -> u8 {
+        self.sp += 1;
+        return self.bus.read(0x0100 + self.sp as u16);
+    }
+
+    fn push16(&mut self, value: u16) {
+        self.push((value >> 8) as u8);
+        self.push((value & 0x00ff) as u8);
+    }
+
+    fn pop16(&mut self) -> u16 {
+
+        let lsb = self.pop() as u16;
+        let msb = self.pop() as u16;
+
+        return msb << 8 + lsb;
+    }
+
     fn irq(&mut self) {
         if !self.get_flag(Flag::I) {
-            self.bus.write(0x0100 + self.sp as u16, (self.pc >> 8) as u8);
-            self.sp -=1;
-            self.bus.write(0x0100 + self.sp as u16, (self.pc & 0x00ff) as u8);
-            self.sp -=1;
+            self.push16(self.pc);
 
             self.set_flag(Flag::B, false);
             self.set_flag(Flag::U, true);
             self.set_flag(Flag::I, true);
-            self.bus.write(0x0100 + self.sp as u16, self.status);
-            self.sp -=1;
+            self.push(self.status);
 
             let lsb = self.bus.read(0xfffe) as u16;
             let msb = self.bus.read(0xffff) as u16;
-
             self.pc = (msb << 8) + lsb;
             self.wait = 7;
         }
     }
 
     fn nmi(&mut self) {
-        self.bus.write(0x0100 + self.sp as u16, (self.pc >> 8) as u8);
-        self.sp -=1;
-        self.bus.write(0x0100 + self.sp as u16, (self.pc & 0x00ff) as u8);
-        self.sp -=1;
+        self.push16(self.pc);
 
         self.set_flag(Flag::B, false);
         self.set_flag(Flag::U, true);
         self.set_flag(Flag::I, true);
-        self.bus.write(0x0100 + self.sp as u16, self.status);
-        self.sp -=1;
+        self.push(self.status);
 
         let lsb = self.bus.read(0xfffa) as u16;
         let msb = self.bus.read(0xfffb) as u16;
@@ -462,15 +476,11 @@ impl <'a> Cpu <'a> {
 
         self.set_flag(Flag::I, true);
 
-        self.bus.write(0x0100 + self.sp as u16, (self.pc >> 8) as u8);
-        self.sp -=1;
-        self.bus.write(0x0100 + self.sp as u16, (self.pc & 0x00ff) as u8);
-        self.sp -=1;
+        self.push16(self.pc);
 
         self.set_flag(Flag::B, true);
         
-        self.bus.write(0x0100 + self.sp as u16, self.status);
-        self.sp -=1;
+        self.push(self.status);
 
         self.set_flag(Flag::B, false);
 
@@ -660,14 +670,8 @@ impl <'a> Cpu <'a> {
     }
 
     fn JSR(&mut self, amr: AddrModeResult) -> u8 {
-
         self.pc -= 1;
-
-        self.bus.write(0x0100 + self.sp as u16, (self.pc >> 8) as u8);
-        self.sp -=1;
-        self.bus.write(0x0100 + self.sp as u16, (self.pc & 0x00ff) as u8);
-        self.sp -=1;
-
+        self.push16(self.pc);
 
         match amr {
             AddrModeResult::Abs(addr, _) => self.pc = addr,
@@ -718,43 +722,40 @@ impl <'a> Cpu <'a> {
 
     fn NOP(&mut self, amr: AddrModeResult) -> u8 {
         //May need additional cycles for certain nops
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn ORA(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.a | self.fetch(&amr);
         self.set_flag(Flag::Z, self.a == 0x00);
         self.set_flag(Flag::N, self.a & 0x80 != 0);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn PHA(&mut self, amr: AddrModeResult) -> u8 {
-        self.bus.write(0x0100 + self.sp as u16, self.a);
-        self.sp -= 1;
-        return 0;
+        self.push(self.a);
+        return self.additional_cycles(&amr, 0);
     }
 
     fn PHP(&mut self, amr: AddrModeResult) -> u8 {
-        self.bus.write(0x0100 + self.sp as u16, self.status | Flag::B as u8 | Flag::U as u8);
+        self.push(self.status | Flag::B as u8 | Flag::U as u8);
         self.set_flag(Flag::B, false);
         self.set_flag(Flag::U, false);
-        self.sp -= 1;
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn PLA(&mut self, amr: AddrModeResult) -> u8 {
-        self.sp += 1;
-        self.a = self.bus.read(0x0100 + self.sp as u16);
+        
+        self.a = self.pop();
         self.set_flag(Flag::Z, self.a == 0x00);
         self.set_flag(Flag::N, self.a & 0x80 != 0);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn PLP(&mut self, amr: AddrModeResult) -> u8 {
-        self.sp += 1;
-        self.status = self.bus.read(0x0100 + self.sp as u16);
+        self.status = self.pop();
         self.set_flag(Flag::U, true);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn ROL(&mut self, amr: AddrModeResult) -> u8 {
@@ -794,44 +795,33 @@ impl <'a> Cpu <'a> {
     }
 
     fn RTI(&mut self, amr: AddrModeResult) -> u8 {
-        self.sp += 1;
-        self.status = self.bus.read(0x0100 + self.sp as u16);
+        self.status = self.pop();
 
         self.status &= !(Flag::B as u8);
         self.status &= !(Flag::U as u8);
 
-        self.sp += 1;
-        let lsb = self.bus.read(0x0100 + self.sp as u16) as u16;
-        self.sp += 1;
-        let msb = self.bus.read(0x0100 + self.sp as u16) as u16;
-
-        self.pc = msb << 8 + lsb;
-        return 0;
+        self.pc = self.pop16();
+        return self.additional_cycles(&amr, 0);
     }
 
     fn RTS(&mut self, amr: AddrModeResult) -> u8 {
-        self.sp += 1;
-        let lsb = self.bus.read(0x0100 + self.sp as u16) as u16;
-        self.sp += 1;
-        let msb = self.bus.read(0x0100 + self.sp as u16) as u16;
-
-        self.pc = msb << 8 + lsb;
-        return 0;
+        self.pc = self.pop16();
+        return self.additional_cycles(&amr, 0);
     }
 
     fn SEC(&mut self, amr: AddrModeResult) -> u8 {
         self.set_flag(Flag::C, true);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn SED(&mut self, amr: AddrModeResult) -> u8 {
         self.set_flag(Flag::D, true);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
     
     fn SEI(&mut self, amr: AddrModeResult) -> u8 {
         self.set_flag(Flag::I, true);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn SBC(&mut self, amr: AddrModeResult) -> u8 {
@@ -854,7 +844,7 @@ impl <'a> Cpu <'a> {
             AddrModeResult::Abs(addr, _) => self.bus.write(addr, self.a),
             _ => panic!("Invalid address mode"),
         }
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn STX(&mut self, amr: AddrModeResult) -> u8 {
@@ -862,7 +852,7 @@ impl <'a> Cpu <'a> {
             AddrModeResult::Abs(addr, _) => self.bus.write(addr, self.x),
             _ => panic!("Invalid address mode"),
         }
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn STY(&mut self, amr: AddrModeResult) -> u8 {
@@ -870,51 +860,51 @@ impl <'a> Cpu <'a> {
             AddrModeResult::Abs(addr, _) => self.bus.write(addr, self.y),
             _ => panic!("Invalid address mode"),
         }
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn TAX(&mut self, amr: AddrModeResult) -> u8 {
         self.x = self.a;
         self.set_flag(Flag::Z, self.x == 0x00);
         self.set_flag(Flag::N, self.x & 0x80 != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn TAY(&mut self, amr: AddrModeResult) -> u8 {
         self.y = self.a;
         self.set_flag(Flag::Z, self.y == 0x00);
         self.set_flag(Flag::N, self.y & 0x80 != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn TSX(&mut self, amr: AddrModeResult) -> u8 {
         self.x = self.sp;
         self.set_flag(Flag::Z, self.x == 0x00);
         self.set_flag(Flag::N, self.x & 0x80 != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn TXA(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.x;
         self.set_flag(Flag::Z, self.a == 0x00);
         self.set_flag(Flag::N, self.a & 0x80 != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn TXS(&mut self, amr: AddrModeResult) -> u8 {
         self.sp = self.x;
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn TYA(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.y;
         self.set_flag(Flag::Z, self.a == 0x00);
         self.set_flag(Flag::N, self.a & 0x80 != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
     fn XXX(&mut self, amr: AddrModeResult) -> u8 {
-        0
+        self.additional_cycles(&amr, 0)
     }
 
     

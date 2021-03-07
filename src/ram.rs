@@ -7,12 +7,8 @@ pub struct Ram {
 
 impl Ram {
     pub fn new() -> Self {
-        let mut data = [0; 65536];
-
-        data[0xfffd] = 0x80;
-
         Self {
-            memory: data,
+            memory: [0; 65536],
         }
     }
 
