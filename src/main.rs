@@ -1,10 +1,10 @@
 mod mos6502;
-mod bus;
+mod nes;
 mod ram;
 mod cartridge;
 mod ppu;
 
-use bus::BusDevice;
+use nes::BusDevice;
 
 use std::{thread, time};
 use std::cell::RefCell;
@@ -12,7 +12,7 @@ use std::rc::Rc;
 
 
 fn main() {
-    let bus = Rc::new(RefCell::new(bus::Bus::new()));
+    let bus = Rc::new(RefCell::new(nes::Nes::new()));
     let cartridge = Box::new(cartridge::Cartridge::new());
     let mut ram = Box::new(ram::Ram::new());
     let ppu = Box::new(ppu::Ppu::new(Rc::clone(&bus)));

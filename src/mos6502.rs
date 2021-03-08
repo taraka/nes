@@ -1,4 +1,4 @@
-use crate::bus::Bus;
+use crate::nes::Nes;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -35,7 +35,7 @@ pub struct Cpu<'a> {
     pc: u16,
     sp: u8,
     status: u8,
-    bus: Rc<RefCell<Bus>>,
+    bus: Rc<RefCell<Nes>>,
     wait: u8,
     lookup: [Op<'a>; 256],
 }
@@ -56,7 +56,7 @@ impl Debug for Cpu <'_> {
 }
 
 impl <'a> Cpu <'a> {
-    pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
+    pub fn new(bus: Rc<RefCell<Nes>>) -> Self {
         Self {
             a: 0,
             x: 0,
