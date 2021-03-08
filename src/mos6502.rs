@@ -114,7 +114,7 @@ impl <'a> Cpu <'a> {
     }
 
     fn read(&self, addr: u16) -> u8 {
-        return self.bus.borrow().read(addr);
+        return self.bus.borrow_mut().read(addr);
     }
     fn write(&self, addr: u16, data: u8) {
         self.bus.borrow_mut().write(addr, data);
@@ -483,7 +483,10 @@ impl <'a> Cpu <'a> {
             cycles += 1;
 
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => addr_rel + self.pc,
+                AddrModeResult::Rel(addr_rel) => {
+                    let (a, _) = addr_rel.overflowing_add(self.pc);
+                    a
+                },
                 _ => panic!("Branch must use Rel Addressing"),
             };
             
@@ -523,7 +526,10 @@ impl <'a> Cpu <'a> {
             cycles += 1;
 
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => addr_rel + self.pc,
+                AddrModeResult::Rel(addr_rel) => {
+                    let (a, _) = addr_rel.overflowing_add(self.pc);
+                    a
+                },
                 _ => panic!("Branch must use Rel Addressing"),
             };
             
@@ -543,7 +549,10 @@ impl <'a> Cpu <'a> {
             cycles += 1;
 
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => addr_rel + self.pc,
+                AddrModeResult::Rel(addr_rel) => {
+                    let (a, _) = addr_rel.overflowing_add(self.pc);
+                    a
+                },
                 _ => panic!("Branch must use Rel Addressing"),
             };
             

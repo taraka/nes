@@ -26,7 +26,7 @@ fn main() {
     let mut cpu = mos6502::Cpu::new(Rc::clone(&bus));
 
     cpu.reset();
-
+    println!("{:?}", cpu);
     loop {
         thread::sleep(time::Duration::from_millis(100));
         cpu.next_inst();

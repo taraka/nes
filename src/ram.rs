@@ -12,7 +12,7 @@ impl Ram {
         }
     }
 
-    pub fn print_range(&self, r: std::ops::Range<u16>) {
+    pub fn print_range(&mut self, r: std::ops::Range<u16>) {
         for i in r {
             if i % 0x10 == 0 {
                 print!("{:#04x}:   ", i);
@@ -27,7 +27,7 @@ impl Ram {
 }
 
 impl BusDevice for Ram {
-    fn read(&self, addr: u16) -> Option<u8> {
+    fn read(&mut self, addr: u16) -> Option<u8> {
         if (0x0000..0x2000).contains(&addr) {
             Some(self.memory[(addr as usize) & 0x7ff])
         }
