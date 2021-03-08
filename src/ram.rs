@@ -2,13 +2,13 @@ use crate::bus::BusDevice;
 
 #[derive(Debug)]
 pub struct Ram {
-    memory: [u8; 65536],
+    memory: [u8; 0x800],
 }
 
 impl Ram {
     pub fn new() -> Self {
         Self {
-            memory: [0; 65536],
+            memory: [0; 0x800],
         }
     }
 
@@ -28,10 +28,17 @@ impl Ram {
 
 impl BusDevice for Ram {
     fn read(&self, addr: u16) -> Option<u8> {
-        Some(self.memory[addr as usize])
+        if (0x0000..0x2000).contains(&addr) {
+            Some(self.memory[(addr as usize) & 0x7ff])
+        }
+        else {
+            None
+        }
     }
 
     fn write(&mut self, addr: u16, data: u8) {
-        self.memory[addr as usize] = data;
+        if (0x0000..0x2000).contains(&addr) {
+            self.memory[(addr as usize) & 0x7ff] = data;
+        }
     }
 }

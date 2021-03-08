@@ -3,8 +3,8 @@ use crate::bus::Bus;
 enum Flag {
     C = (1 << 0), // Carry
     Z = (1 << 1), // Zero
-    I = (1 << 2), //Disable irq
-    D = (1 << 3), //Not used
+    I = (1 << 2), // Disable irq
+    D = (1 << 3), // Not used
     B = (1 << 4), // Break
     U = (1 << 5), // Ununsed
     V = (1 << 6), // Overflow
