@@ -1,4 +1,6 @@
 use crate::bus::BusDevice;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Ram {

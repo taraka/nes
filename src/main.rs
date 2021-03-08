@@ -1,17 +1,23 @@
 mod mos6502;
 mod bus;
 mod ram;
+mod cartridge;
+mod ppu;
 
 use bus::BusDevice;
 
 use std::{thread, time};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 
 fn main() {
-    let mut bus = bus::Bus::new();
-    let mut ram = ram::Ram::new();
+    let bus = Rc::new(RefCell::new(bus::Bus::new()));
+    let cartridge = Box::new(cartridge::Cartridge::new());
+    let mut ram = Box::new(ram::Ram::new());
+    let ppu = Box::new(ppu::Ppu::new(Rc::clone(&bus)));
 
-    // Reset Vector
+    // Fill Ram
     ram.write(0xfffd, 0x00);
     ram.write(0x00fe, 0x01);
 
@@ -20,8 +26,18 @@ fn main() {
         ram.write((i as u16) + 0x0000, *o);
     }
 
-    bus.connect(&mut ram);
-    let mut cpu = mos6502::Cpu::new(&mut bus);
+    //println!("{:?}", cpu);
+    ram.print_range(0x0000..0x0100);
+
+    {
+        let mut mut_bus = bus.borrow_mut();
+        mut_bus.connect(cartridge);
+        mut_bus.connect(ram);
+        mut_bus.connect(ppu);
+    }
+
+    let mut cpu = mos6502::Cpu::new(Rc::clone(&bus));
+
     cpu.reset();
 
     loop {
@@ -30,22 +46,6 @@ fn main() {
         println!("{:?}", cpu);
     }
 
-    // println!("{:?}", cpu);
-    // cpu.next_inst();
-
-    // println!("{:?}", cpu);
-    // cpu.next_inst();
-
-    // println!("{:?}", cpu);
-    // cpu.next_inst();
-
-    // println!("{:?}", cpu);
-    // cpu.next_inst();
-
-
-
-
-    // println!("{:?}", cpu);
-    // ram.print_range(0x8000..0x8100);
+   
     
 }
