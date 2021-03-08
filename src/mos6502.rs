@@ -17,7 +17,7 @@ enum Flag {
 enum AddrModeResult {
     Imp(),
     Abs(u16, u8),
-    Rel(u16)
+    Rel(i8)
 }
 
 #[derive(Clone,Copy)]
@@ -89,7 +89,7 @@ impl <'a> Cpu <'a> {
         self.pc += 1;
 
         let op = self.lookup[opcode as usize];
-        //println!("{}", op.name);
+        println!("{}", op.name);
         let amr = (op.addr_mode)(self);
         let additional_cycles = (op.op)(self, amr);
         self.wait = op.cycles + additional_cycles - 1;
@@ -304,14 +304,10 @@ impl <'a> Cpu <'a> {
     }
 
     fn rel(&mut self) -> AddrModeResult {
-        let mut addr = self.read(self.pc) as u16;
+        let mut addr = self.read(self.pc) ;
         self.pc +=1;
 
-        if addr & 0x80 != 0 {
-            addr |= 0xff00;
-        }
-
-        AddrModeResult::Rel(addr)
+        AddrModeResult::Rel(i8::from_be_bytes([addr]))
     }
 
     fn fetch(&mut self, amr: &AddrModeResult) -> u8 {
@@ -375,7 +371,7 @@ impl <'a> Cpu <'a> {
             cycles += 1;
 
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => addr_rel + self.pc,
+                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
                 _ => panic!("Branch must use Rel Addressing"),
             };
             
@@ -395,7 +391,7 @@ impl <'a> Cpu <'a> {
             cycles += 1;
 
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => addr_rel + self.pc,
+                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
                 _ => panic!("Branch must use Rel Addressing"),
             };
             
@@ -415,7 +411,7 @@ impl <'a> Cpu <'a> {
             cycles += 1;
 
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => addr_rel + self.pc,
+                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
                 _ => panic!("Branch must use Rel Addressing"),
             };
             
@@ -443,7 +439,7 @@ impl <'a> Cpu <'a> {
             cycles += 1;
 
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => addr_rel + self.pc,
+                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
                 _ => panic!("Branch must use Rel Addressing"),
             };
             
@@ -463,7 +459,7 @@ impl <'a> Cpu <'a> {
             cycles += 1;
 
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => addr_rel + self.pc,
+                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
                 _ => panic!("Branch must use Rel Addressing"),
             };
             
@@ -483,10 +479,7 @@ impl <'a> Cpu <'a> {
             cycles += 1;
 
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => {
-                    let (a, _) = addr_rel.overflowing_add(self.pc);
-                    a
-                },
+                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
                 _ => panic!("Branch must use Rel Addressing"),
             };
             
@@ -526,10 +519,7 @@ impl <'a> Cpu <'a> {
             cycles += 1;
 
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => {
-                    let (a, _) = addr_rel.overflowing_add(self.pc);
-                    a
-                },
+                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
                 _ => panic!("Branch must use Rel Addressing"),
             };
             
@@ -549,10 +539,7 @@ impl <'a> Cpu <'a> {
             cycles += 1;
 
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => {
-                    let (a, _) = addr_rel.overflowing_add(self.pc);
-                    a
-                },
+                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
                 _ => panic!("Branch must use Rel Addressing"),
             };
             
