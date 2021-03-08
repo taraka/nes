@@ -87,7 +87,7 @@ impl <'a> Cpu <'a> {
         self.pc += 1;
 
         let op = self.lookup[opcode as usize];
-        println!("{}", op.name);
+        //println!("{}", op.name);
         let amr = (op.addr_mode)(self);
         let additional_cycles = (op.op)(self, amr);
         self.wait = op.cycles + additional_cycles - 1;
@@ -179,34 +179,34 @@ impl <'a> Cpu <'a> {
     }
 
     // Address modes
-    fn IMP(&mut self) -> AddrModeResult {
+    fn imp(&mut self) -> AddrModeResult {
         AddrModeResult::Imp()
     }
 
-    fn IMM(&mut self) -> AddrModeResult {
+    fn imm(&mut self) -> AddrModeResult {
         self.pc +=1;
         AddrModeResult::Abs(self.pc, 0)
     }
 
-    fn ZP0(&mut self) -> AddrModeResult {
+    fn zp0(&mut self) -> AddrModeResult {
         let addr = self.bus.read(self.pc);
         self.pc +=1;
         AddrModeResult::Abs(addr as u16, 0)
     }
 
-    fn ZPX(&mut self) -> AddrModeResult {
+    fn zpx(&mut self) -> AddrModeResult {
         let addr = self.bus.read(self.pc + self.x as u16);
         self.pc +=1;
         AddrModeResult::Abs(addr as u16, 0)
     }
 
-    fn ZPY(&mut self) -> AddrModeResult {
+    fn zpy(&mut self) -> AddrModeResult {
         let addr = self.bus.read(self.pc + self.y as u16);
         self.pc +=1;
         AddrModeResult::Abs(addr as u16, 0)
     }
 
-    fn ABS(&mut self) -> AddrModeResult {
+    fn abs(&mut self) -> AddrModeResult {
         let lsb = self.bus.read(self.pc) as u16;
         self.pc +=1;
         let msb = self.bus.read(self.pc) as u16;
@@ -214,7 +214,7 @@ impl <'a> Cpu <'a> {
         AddrModeResult::Abs((msb << 8) + lsb, 0)
     }
 
-    fn ABX(&mut self) -> AddrModeResult {
+    fn abx(&mut self) -> AddrModeResult {
         let lsb = self.bus.read(self.pc) as u16;
         self.pc +=1;
         let msb = self.bus.read(self.pc) as u16;
@@ -231,7 +231,7 @@ impl <'a> Cpu <'a> {
         AddrModeResult::Abs(addr, c)
     }
 
-    fn ABY(&mut self) -> AddrModeResult {
+    fn aby(&mut self) -> AddrModeResult {
         let lsb = self.bus.read(self.pc) as u16;
         self.pc +=1;
         let msb = self.bus.read(self.pc) as u16;
@@ -248,7 +248,7 @@ impl <'a> Cpu <'a> {
         AddrModeResult::Abs(addr, c)
     }
 
-    fn IND(&mut self) -> AddrModeResult {
+    fn ind(&mut self) -> AddrModeResult {
         let ptr_lsb = self.bus.read(self.pc) as u16;
         self.pc +=1;
         let ptr_msb = self.bus.read(self.pc) as u16;
@@ -265,7 +265,7 @@ impl <'a> Cpu <'a> {
         }
     }
 
-    fn IZX(&mut self) -> AddrModeResult {
+    fn izx(&mut self) -> AddrModeResult {
         let addr = self.bus.read(self.pc) as u16;
         self.pc +=1;
 
@@ -275,7 +275,7 @@ impl <'a> Cpu <'a> {
         AddrModeResult::Abs(msb << 8 + lsb, 0)
     }
 
-    fn IZY(&mut self) -> AddrModeResult {
+    fn izy(&mut self) -> AddrModeResult {
         let ptr = self.bus.read(self.pc) as u16;
         self.pc +=1;
 
@@ -294,7 +294,7 @@ impl <'a> Cpu <'a> {
         AddrModeResult::Abs(addr, c)
     }
 
-    fn REL(&mut self) -> AddrModeResult {
+    fn rel(&mut self) -> AddrModeResult {
         let mut addr = self.bus.read(self.pc) as u16;
         self.pc +=1;
 
@@ -309,7 +309,7 @@ impl <'a> Cpu <'a> {
         match amr {
             AddrModeResult::Imp() => self.a,
             AddrModeResult::Abs(addr, _) => self.bus.read(*addr),
-            AddrModeResult::Rel(addr) => 0 // TODO
+            AddrModeResult::Rel(_addr) => 0 // TODO
         }
     }
 
@@ -322,14 +322,14 @@ impl <'a> Cpu <'a> {
     }
 
     // Operations
-    fn AND(&mut self, amr: AddrModeResult) -> u8 {
+    fn and(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.a & self.fetch(&amr);
         self.set_flag(Flag::Z, self.a == 0);
         self.set_flag(Flag::N, self.a & 80 != 0);
         return self.additional_cycles(&amr, 1);
     }
 
-    fn ADC(&mut self, amr: AddrModeResult) -> u8 {
+    fn adc(&mut self, amr: AddrModeResult) -> u8 {
         let rhs = self.fetch(&amr);
         let (temp, overflow1) = self.a.overflowing_add(rhs);
         let (result, overflow2) = temp.overflowing_add(self.get_flag(Flag::C) as u8);
@@ -344,7 +344,7 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 1);
     }
 
-    fn ASL(&mut self, amr: AddrModeResult) -> u8 {
+    fn asl(&mut self, amr: AddrModeResult) -> u8 {
         let (temp, overflow) = self.fetch(&amr).overflowing_shl(1);
 
         self.set_flag(Flag::C, overflow);
@@ -360,7 +360,7 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 0);
     }
 
-    fn BCC(&mut self, amr: AddrModeResult) -> u8 {
+    fn bcc(&mut self, amr: AddrModeResult) -> u8 {
         let mut cycles = 0;
         if !self.get_flag(Flag::C) {
             cycles += 1;
@@ -380,7 +380,7 @@ impl <'a> Cpu <'a> {
         return cycles;
     }
 
-    fn BCS(&mut self, amr: AddrModeResult) -> u8 {
+    fn bcs(&mut self, amr: AddrModeResult) -> u8 {
         let mut cycles = 0;
         if self.get_flag(Flag::C) {
             cycles += 1;
@@ -400,7 +400,7 @@ impl <'a> Cpu <'a> {
         return cycles;
     }
 
-    fn BEQ(&mut self, amr: AddrModeResult) -> u8 {
+    fn beq(&mut self, amr: AddrModeResult) -> u8 {
         let mut cycles = 0;
         if self.get_flag(Flag::Z) {
             cycles += 1;
@@ -420,15 +420,15 @@ impl <'a> Cpu <'a> {
         return cycles;
     }
 
-    fn BIT(&mut self, amr: AddrModeResult) -> u8 {
+    fn bit(&mut self, amr: AddrModeResult) -> u8 {
         let temp = self.fetch(&amr) & self.a;
         self.set_flag(Flag::Z, temp == 0x00);
         self.set_flag(Flag::N, temp  & (1<<7)!= 0x00);
         self.set_flag(Flag::V, temp  & (1<<6) != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn BMI(&mut self, amr: AddrModeResult) -> u8 {
+    fn bmi(&mut self, amr: AddrModeResult) -> u8 {
         let mut cycles = 0;
         if self.get_flag(Flag::N) {
             cycles += 1;
@@ -448,7 +448,7 @@ impl <'a> Cpu <'a> {
         return cycles;
     }
 
-    fn BNE(&mut self, amr: AddrModeResult) -> u8 {
+    fn bne(&mut self, amr: AddrModeResult) -> u8 {
         let mut cycles = 0;
         if !self.get_flag(Flag::Z) {
             cycles += 1;
@@ -468,7 +468,7 @@ impl <'a> Cpu <'a> {
         return cycles;
     }
 
-    fn BPL(&mut self, amr: AddrModeResult) -> u8 {
+    fn bpl(&mut self, amr: AddrModeResult) -> u8 {
         let mut cycles = 0;
         if !self.get_flag(Flag::N) {
             cycles += 1;
@@ -488,7 +488,7 @@ impl <'a> Cpu <'a> {
         return cycles;
     }
 
-    fn BRK(&mut self, amr: AddrModeResult) -> u8 {
+    fn brk(&mut self, amr: AddrModeResult) -> u8 {
         self.pc += 1;
 
         self.set_flag(Flag::I, true);
@@ -505,10 +505,10 @@ impl <'a> Cpu <'a> {
         let msb = self.bus.read(0xffff) as u16;
 
         self.pc = (msb << 8) + lsb;
-        return 0
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn BVC(&mut self, amr: AddrModeResult) -> u8 {
+    fn bvc(&mut self, amr: AddrModeResult) -> u8 {
         let mut cycles = 0;
         if !self.get_flag(Flag::V) {
             cycles += 1;
@@ -528,7 +528,7 @@ impl <'a> Cpu <'a> {
         return cycles;
     }
 
-    fn BVS(&mut self, amr: AddrModeResult) -> u8 {
+    fn bvs(&mut self, amr: AddrModeResult) -> u8 {
         let mut cycles = 0;
         if self.get_flag(Flag::V) {
             cycles += 1;
@@ -548,92 +548,92 @@ impl <'a> Cpu <'a> {
         return cycles;
     }
 
-    fn CLC(&mut self, amr: AddrModeResult) -> u8 {
+    fn clc(&mut self, amr: AddrModeResult) -> u8 {
         self.set_flag(Flag::C, false);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn CLD(&mut self, amr: AddrModeResult) -> u8 {
+    fn cld(&mut self, amr: AddrModeResult) -> u8 {
         self.set_flag(Flag::D, false);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn CLI(&mut self, amr: AddrModeResult) -> u8 {
+    fn cli(&mut self, amr: AddrModeResult) -> u8 {
         self.set_flag(Flag::I, false);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn CLV(&mut self, amr: AddrModeResult) -> u8 {
+    fn clv(&mut self, amr: AddrModeResult) -> u8 {
         self.set_flag(Flag::V, false);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn CMP(&mut self, amr: AddrModeResult) -> u8 {
+    fn cmp(&mut self, amr: AddrModeResult) -> u8 {
         let fetched = self.fetch(&amr);
-        let (result, overflow) = self.a.overflowing_sub(fetched);
+        let (result, _overflow) = self.a.overflowing_sub(fetched);
 
         self.set_flag(Flag::C, self.a >= fetched);
         self.set_flag(Flag::Z, fetched == self.a);
         self.set_flag(Flag::N, result & 0x80 != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn CPX(&mut self, amr: AddrModeResult) -> u8 {
+    fn cpx(&mut self, amr: AddrModeResult) -> u8 {
         let fetched = self.fetch(&amr);
-        let (result, overflow) = self.x.overflowing_sub(fetched);
+        let (result, _overflow) = self.x.overflowing_sub(fetched);
 
         self.set_flag(Flag::C, self.x >= fetched);
         self.set_flag(Flag::Z, fetched == self.x);
         self.set_flag(Flag::N, result & 0x80 != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn CPY(&mut self, amr: AddrModeResult) -> u8 {
+    fn cpy(&mut self, amr: AddrModeResult) -> u8 {
         let fetched = self.fetch(&amr);
-        let (result, overflow) = self.y.overflowing_sub(fetched);
+        let (result, _overflow) = self.y.overflowing_sub(fetched);
 
         self.set_flag(Flag::C, self.x >= fetched);
         self.set_flag(Flag::Z, fetched == self.y);
         self.set_flag(Flag::N, result & 0x80 != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn DEC(&mut self, amr: AddrModeResult) -> u8 {
+    fn dec(&mut self, amr: AddrModeResult) -> u8 {
 
-        let (result, overflow) = self.fetch(&amr).overflowing_sub(1);
+        let (result, _overflow) = self.fetch(&amr).overflowing_sub(1);
 
         self.set_flag(Flag::Z, result == 0x00);
         self.set_flag(Flag::N, result & 0x80 != 0x00);
         self.x = result;
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn DEX(&mut self, amr: AddrModeResult) -> u8 {
+    fn dex(&mut self, amr: AddrModeResult) -> u8 {
 
-        let (result, overflow) = self.x.overflowing_sub(1);
+        let (result, _overflow) = self.x.overflowing_sub(1);
 
         self.set_flag(Flag::Z, result == 0x00);
         self.set_flag(Flag::N, result & 0x80 != 0x00);
         
-        let addr = match amr {
+        match amr {
             AddrModeResult::Abs(addr, _) => self.bus.write(addr, result),
             _ => panic!("Branch must use Rel Addressing"),
         };
         
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn DEY(&mut self, amr: AddrModeResult) -> u8 {
+    fn dey(&mut self, amr: AddrModeResult) -> u8 {
 
-        let (result, overflow) = self.y.overflowing_sub(1);
+        let (result, _overflow) = self.y.overflowing_sub(1);
 
         self.set_flag(Flag::Z, result == 0x00);
         self.set_flag(Flag::N, result & 0x80 != 0x00);
         self.y = result;
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn EOR(&mut self, amr: AddrModeResult) -> u8 {
+    fn eor(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.fetch(&amr) ^ self.a;
 
         self.set_flag(Flag::Z, self.a == 0x00);
@@ -642,9 +642,9 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 1);
     }
 
-    fn INC(&mut self, amr: AddrModeResult) -> u8 {
+    fn inc(&mut self, amr: AddrModeResult) -> u8 {
 
-        let (result, overflow) = self.fetch(&amr).overflowing_add(1);
+        let (result, _overflow) = self.fetch(&amr).overflowing_add(1);
 
         match amr {
             AddrModeResult::Abs(addr, _) => self.bus.write(addr, result),
@@ -656,37 +656,37 @@ impl <'a> Cpu <'a> {
         return 0;
     }
 
-    fn INX(&mut self, amr: AddrModeResult) -> u8 {
+    fn inx(&mut self, amr: AddrModeResult) -> u8 {
 
-        let (result, overflow) = self.x.overflowing_add(1);
+        let (result, _overflow) = self.x.overflowing_add(1);
 
         self.set_flag(Flag::Z, result == 0x00);
         self.set_flag(Flag::N, result & 0x80 != 0x00);
         self.x = result;
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn INY(&mut self, amr: AddrModeResult) -> u8 {
+    fn iny(&mut self, amr: AddrModeResult) -> u8 {
 
-        let (result, overflow) = self.y.overflowing_add(1);
+        let (result, _overflow) = self.y.overflowing_add(1);
 
         self.set_flag(Flag::Z, result == 0x00);
         self.set_flag(Flag::N, result & 0x80 != 0x00);
         self.y = result;
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn JMP(&mut self, amr: AddrModeResult) -> u8 {
+    fn jmp(&mut self, amr: AddrModeResult) -> u8 {
 
         match amr {
             AddrModeResult::Abs(addr, _) => self.pc = addr,
             _ => panic!("Invalid address mode"),
         }
 
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn JSR(&mut self, amr: AddrModeResult) -> u8 {
+    fn jsr(&mut self, amr: AddrModeResult) -> u8 {
         self.pc -= 1;
         self.push16(self.pc);
 
@@ -695,36 +695,35 @@ impl <'a> Cpu <'a> {
             _ => panic!("Invalid address mode"),
         }
 
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn LDA(&mut self, amr: AddrModeResult) -> u8 {
+    fn lda(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.fetch(&amr);
-        println!("{:?} {:?}", amr, self.a);
         self.set_flag(Flag::Z, self.a == 0x00);
         self.set_flag(Flag::N, self.a & 0x80 != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn LDX(&mut self, amr: AddrModeResult) -> u8 {
+    fn ldx(&mut self, amr: AddrModeResult) -> u8 {
         self.x = self.fetch(&amr);
         self.set_flag(Flag::Z, self.x == 0x00);
         self.set_flag(Flag::N, self.x & 0x80 != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn LDY(&mut self, amr: AddrModeResult) -> u8 {
+    fn ldy(&mut self, amr: AddrModeResult) -> u8 {
         self.y = self.fetch(&amr);
         self.set_flag(Flag::Z, self.y == 0x00);
         self.set_flag(Flag::N, self.y & 0x80 != 0x00);
-        return 0;
+        return self.additional_cycles(&amr, 0);
     }
 
-    fn LSR(&mut self, amr: AddrModeResult) -> u8 {
+    fn lsr(&mut self, amr: AddrModeResult) -> u8 {
         let fetched = self.fetch(&amr);
         self.set_flag(Flag::C, fetched == 0x01);
 
-        let (temp, overflow) = fetched.overflowing_shr(1);
+        let (temp, _overflow) = fetched.overflowing_shr(1);
 
         self.set_flag(Flag::Z, temp == 0);
         self.set_flag(Flag::N, temp & 80 != 0);
@@ -738,31 +737,31 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 0);
     }
 
-    fn NOP(&mut self, amr: AddrModeResult) -> u8 {
+    fn nop(&mut self, amr: AddrModeResult) -> u8 {
         //May need additional cycles for certain nops
         return self.additional_cycles(&amr, 0);
     }
 
-    fn ORA(&mut self, amr: AddrModeResult) -> u8 {
+    fn ora(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.a | self.fetch(&amr);
         self.set_flag(Flag::Z, self.a == 0x00);
         self.set_flag(Flag::N, self.a & 0x80 != 0);
         return self.additional_cycles(&amr, 0);
     }
 
-    fn PHA(&mut self, amr: AddrModeResult) -> u8 {
+    fn pha(&mut self, amr: AddrModeResult) -> u8 {
         self.push(self.a);
         return self.additional_cycles(&amr, 0);
     }
 
-    fn PHP(&mut self, amr: AddrModeResult) -> u8 {
+    fn php(&mut self, amr: AddrModeResult) -> u8 {
         self.push(self.status | Flag::B as u8 | Flag::U as u8);
         self.set_flag(Flag::B, false);
         self.set_flag(Flag::U, false);
         return self.additional_cycles(&amr, 0);
     }
 
-    fn PLA(&mut self, amr: AddrModeResult) -> u8 {
+    fn pla(&mut self, amr: AddrModeResult) -> u8 {
         
         self.a = self.pop();
         self.set_flag(Flag::Z, self.a == 0x00);
@@ -770,13 +769,13 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 0);
     }
 
-    fn PLP(&mut self, amr: AddrModeResult) -> u8 {
+    fn plp(&mut self, amr: AddrModeResult) -> u8 {
         self.status = self.pop();
         self.set_flag(Flag::U, true);
         return self.additional_cycles(&amr, 0);
     }
 
-    fn ROL(&mut self, amr: AddrModeResult) -> u8 {
+    fn rol(&mut self, amr: AddrModeResult) -> u8 {
         let fetched = self.fetch(&amr);
         let (temp, overflow) = fetched.overflowing_shl(1);
         let result = temp | self.get_flag(Flag::C) as u8;
@@ -794,7 +793,7 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 0);
     }
 
-    fn ROR(&mut self, amr: AddrModeResult) -> u8 {
+    fn ror(&mut self, amr: AddrModeResult) -> u8 {
         let fetched = self.fetch(&amr);
         let (temp, overflow) = fetched.overflowing_shr(1);
         let result = temp | ((self.get_flag(Flag::C) as u8) << 7);
@@ -812,7 +811,7 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 0);
     }
 
-    fn RTI(&mut self, amr: AddrModeResult) -> u8 {
+    fn rti(&mut self, amr: AddrModeResult) -> u8 {
         self.status = self.pop();
 
         self.status &= !(Flag::B as u8);
@@ -822,27 +821,27 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 0);
     }
 
-    fn RTS(&mut self, amr: AddrModeResult) -> u8 {
+    fn rts(&mut self, amr: AddrModeResult) -> u8 {
         self.pc = self.pop16();
         return self.additional_cycles(&amr, 0);
     }
 
-    fn SEC(&mut self, amr: AddrModeResult) -> u8 {
+    fn sec(&mut self, amr: AddrModeResult) -> u8 {
         self.set_flag(Flag::C, true);
         return self.additional_cycles(&amr, 0);
     }
 
-    fn SED(&mut self, amr: AddrModeResult) -> u8 {
+    fn sed(&mut self, amr: AddrModeResult) -> u8 {
         self.set_flag(Flag::D, true);
         return self.additional_cycles(&amr, 0);
     }
     
-    fn SEI(&mut self, amr: AddrModeResult) -> u8 {
+    fn sei(&mut self, amr: AddrModeResult) -> u8 {
         self.set_flag(Flag::I, true);
         return self.additional_cycles(&amr, 0);
     }
 
-    fn SBC(&mut self, amr: AddrModeResult) -> u8 {
+    fn sbc(&mut self, amr: AddrModeResult) -> u8 {
         let rhs = self.fetch(&amr) ^ 0xff;
         let (temp, overflow1) = self.a.overflowing_add(rhs);
         let (result, overflow2) = temp.overflowing_add(self.get_flag(Flag::C) as u8);
@@ -857,7 +856,7 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 1);
     }
 
-    fn STA(&mut self, amr: AddrModeResult) -> u8 {
+    fn sta(&mut self, amr: AddrModeResult) -> u8 {
         match amr {
             AddrModeResult::Abs(addr, _) => self.bus.write(addr, self.a),
             _ => panic!("Invalid address mode"),
@@ -865,7 +864,7 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 0);
     }
 
-    fn STX(&mut self, amr: AddrModeResult) -> u8 {
+    fn stx(&mut self, amr: AddrModeResult) -> u8 {
         match amr {
             AddrModeResult::Abs(addr, _) => self.bus.write(addr, self.x),
             _ => panic!("Invalid address mode"),
@@ -873,7 +872,7 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 0);
     }
 
-    fn STY(&mut self, amr: AddrModeResult) -> u8 {
+    fn sty(&mut self, amr: AddrModeResult) -> u8 {
         match amr {
             AddrModeResult::Abs(addr, _) => self.bus.write(addr, self.y),
             _ => panic!("Invalid address mode"),
@@ -881,47 +880,47 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 0);
     }
 
-    fn TAX(&mut self, amr: AddrModeResult) -> u8 {
+    fn tax(&mut self, amr: AddrModeResult) -> u8 {
         self.x = self.a;
         self.set_flag(Flag::Z, self.x == 0x00);
         self.set_flag(Flag::N, self.x & 0x80 != 0x00);
         return self.additional_cycles(&amr, 0);
     }
 
-    fn TAY(&mut self, amr: AddrModeResult) -> u8 {
+    fn tay(&mut self, amr: AddrModeResult) -> u8 {
         self.y = self.a;
         self.set_flag(Flag::Z, self.y == 0x00);
         self.set_flag(Flag::N, self.y & 0x80 != 0x00);
         return self.additional_cycles(&amr, 0);
     }
 
-    fn TSX(&mut self, amr: AddrModeResult) -> u8 {
+    fn tsx(&mut self, amr: AddrModeResult) -> u8 {
         self.x = self.sp;
         self.set_flag(Flag::Z, self.x == 0x00);
         self.set_flag(Flag::N, self.x & 0x80 != 0x00);
         return self.additional_cycles(&amr, 0);
     }
 
-    fn TXA(&mut self, amr: AddrModeResult) -> u8 {
+    fn txa(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.x;
         self.set_flag(Flag::Z, self.a == 0x00);
         self.set_flag(Flag::N, self.a & 0x80 != 0x00);
         return self.additional_cycles(&amr, 0);
     }
 
-    fn TXS(&mut self, amr: AddrModeResult) -> u8 {
+    fn txs(&mut self, amr: AddrModeResult) -> u8 {
         self.sp = self.x;
         return self.additional_cycles(&amr, 0);
     }
 
-    fn TYA(&mut self, amr: AddrModeResult) -> u8 {
+    fn tya(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.y;
         self.set_flag(Flag::Z, self.a == 0x00);
         self.set_flag(Flag::N, self.a & 0x80 != 0x00);
         return self.additional_cycles(&amr, 0);
     }
 
-    fn XXX(&mut self, amr: AddrModeResult) -> u8 {
+    fn xxx(&mut self, amr: AddrModeResult) -> u8 {
         self.additional_cycles(&amr, 0)
     }
 
@@ -929,262 +928,262 @@ impl <'a> Cpu <'a> {
 
     fn get_op_matrix() -> [Op<'a>; 256] {
         [
-            Op{ name:"BRK", op: Self::BRK, addr_mode: Self::IMM, cycles: 7 },
-            Op{ name:"ORA", op: Self::ORA, addr_mode: Self::IZX, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 3 },
-            Op{ name:"ORA", op: Self::ORA, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"ASL", op: Self::ASL, addr_mode: Self::ZP0, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 5 },
-            Op{ name:"PHP", op: Self::PHP, addr_mode: Self::IMP, cycles: 3 },
-            Op{ name:"ORA", op: Self::ORA, addr_mode: Self::IMM, cycles: 2 },
-            Op{ name:"ASL", op: Self::ASL, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"ORA", op: Self::ORA, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"ASL", op: Self::ASL, addr_mode: Self::ABS, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"BPL", op: Self::BPL, addr_mode: Self::REL, cycles: 2 },
-            Op{ name:"ORA", op: Self::ORA, addr_mode: Self::IZY, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"ORA", op: Self::ORA, addr_mode: Self::ZPX, cycles: 4 },
-            Op{ name:"ASL", op: Self::ASL, addr_mode: Self::ZPX, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"CLC", op: Self::CLC, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"ORA", op: Self::ORA, addr_mode: Self::ABY, cycles: 4 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"ORA", op: Self::ORA, addr_mode: Self::ABX, cycles: 4 },
-            Op{ name:"ASL", op: Self::ASL, addr_mode: Self::ABX, cycles: 7 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
-            Op{ name:"JSR", op: Self::JSR, addr_mode: Self::ABS, cycles: 6 },
-            Op{ name:"AND", op: Self::AND, addr_mode: Self::IZX, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"BIT", op: Self::BIT, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"AND", op: Self::AND, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"ROL", op: Self::ROL, addr_mode: Self::ZP0, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 5 },
-            Op{ name:"PLP", op: Self::PLP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"AND", op: Self::AND, addr_mode: Self::IMM, cycles: 2 },
-            Op{ name:"ROL", op: Self::ROL, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"BIT", op: Self::BIT, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"AND", op: Self::AND, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"ROL", op: Self::ROL, addr_mode: Self::ABS, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"BMI", op: Self::BMI, addr_mode: Self::REL, cycles: 2 },
-            Op{ name:"AND", op: Self::AND, addr_mode: Self::IZY, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"AND", op: Self::AND, addr_mode: Self::ZPX, cycles: 4 },
-            Op{ name:"ROL", op: Self::ROL, addr_mode: Self::ZPX, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"SEC", op: Self::SEC, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"AND", op: Self::AND, addr_mode: Self::ABY, cycles: 4 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"AND", op: Self::AND, addr_mode: Self::ABX, cycles: 4 },
-            Op{ name:"ROL", op: Self::ROL, addr_mode: Self::ABX, cycles: 7 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
-            Op{ name:"RTI", op: Self::RTI, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"EOR", op: Self::EOR, addr_mode: Self::IZX, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 3 },
-            Op{ name:"EOR", op: Self::EOR, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"LSR", op: Self::LSR, addr_mode: Self::ZP0, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 5 },
-            Op{ name:"PHA", op: Self::PHA, addr_mode: Self::IMP, cycles: 3 },
-            Op{ name:"EOR", op: Self::EOR, addr_mode: Self::IMM, cycles: 2 },
-            Op{ name:"LSR", op: Self::LSR, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"JMP", op: Self::JMP, addr_mode: Self::ABS, cycles: 3 },
-            Op{ name:"EOR", op: Self::EOR, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"LSR", op: Self::LSR, addr_mode: Self::ABS, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"BVC", op: Self::BVC, addr_mode: Self::REL, cycles: 2 },
-            Op{ name:"EOR", op: Self::EOR, addr_mode: Self::IZY, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"EOR", op: Self::EOR, addr_mode: Self::ZPX, cycles: 4 },
-            Op{ name:"LSR", op: Self::LSR, addr_mode: Self::ZPX, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"CLI", op: Self::CLI, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"EOR", op: Self::EOR, addr_mode: Self::ABY, cycles: 4 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"EOR", op: Self::EOR, addr_mode: Self::ABX, cycles: 4 },
-            Op{ name:"LSR", op: Self::LSR, addr_mode: Self::ABX, cycles: 7 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
-            Op{ name:"RTS", op: Self::RTS, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"ADC", op: Self::ADC, addr_mode: Self::IZX, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 3 },
-            Op{ name:"ADC", op: Self::ADC, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"ROR", op: Self::ROR, addr_mode: Self::ZP0, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 5 },
-            Op{ name:"PLA", op: Self::PLA, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"ADC", op: Self::ADC, addr_mode: Self::IMM, cycles: 2 },
-            Op{ name:"ROR", op: Self::ROR, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"JMP", op: Self::JMP, addr_mode: Self::IND, cycles: 5 },
-            Op{ name:"ADC", op: Self::ADC, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"ROR", op: Self::ROR, addr_mode: Self::ABS, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"BVS", op: Self::BVS, addr_mode: Self::REL, cycles: 2 },
-            Op{ name:"ADC", op: Self::ADC, addr_mode: Self::IZY, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"ADC", op: Self::ADC, addr_mode: Self::ZPX, cycles: 4 },
-            Op{ name:"ROR", op: Self::ROR, addr_mode: Self::ZPX, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"SEI", op: Self::SEI, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"ADC", op: Self::ADC, addr_mode: Self::ABY, cycles: 4 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"ADC", op: Self::ADC, addr_mode: Self::ABX, cycles: 4 },
-            Op{ name:"ROR", op: Self::ROR, addr_mode: Self::ABX, cycles: 7 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"STA", op: Self::STA, addr_mode: Self::IZX, cycles: 6 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"STY", op: Self::STY, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"STA", op: Self::STA, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"STX", op: Self::STX, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 3 },
-            Op{ name:"DEY", op: Self::DEY, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"TXA", op: Self::TXA, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"STY", op: Self::STY, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"STA", op: Self::STA, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"STX", op: Self::STX, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"BCC", op: Self::BCC, addr_mode: Self::REL, cycles: 2 },
-            Op{ name:"STA", op: Self::STA, addr_mode: Self::IZY, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"STY", op: Self::STY, addr_mode: Self::ZPX, cycles: 4 },
-            Op{ name:"STA", op: Self::STA, addr_mode: Self::ZPX, cycles: 4 },
-            Op{ name:"STX", op: Self::STX, addr_mode: Self::ZPY, cycles: 4 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"TYA", op: Self::TYA, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"STA", op: Self::STA, addr_mode: Self::ABY, cycles: 5 },
-            Op{ name:"TXS", op: Self::TXS, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 5 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 5 },
-            Op{ name:"STA", op: Self::STA, addr_mode: Self::ABX, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 5 },
-            Op{ name:"LDY", op: Self::LDY, addr_mode: Self::IMM, cycles: 2 },
-            Op{ name:"LDA", op: Self::LDA, addr_mode: Self::IZX, cycles: 6 },
-            Op{ name:"LDX", op: Self::LDX, addr_mode: Self::IMM, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"LDY", op: Self::LDY, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"LDA", op: Self::LDA, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"LDX", op: Self::LDX, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 3 },
-            Op{ name:"TAY", op: Self::TAY, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"LDA", op: Self::LDA, addr_mode: Self::IMM, cycles: 2 },
-            Op{ name:"TAX", op: Self::TAX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"LDY", op: Self::LDY, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"LDA", op: Self::LDA, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"LDX", op: Self::LDX, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"BCS", op: Self::BCS, addr_mode: Self::REL, cycles: 2 },
-            Op{ name:"LDA", op: Self::LDA, addr_mode: Self::IZY, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 5 },
-            Op{ name:"LDY", op: Self::LDY, addr_mode: Self::ZPX, cycles: 4 },
-            Op{ name:"LDA", op: Self::LDA, addr_mode: Self::ZPX, cycles: 4 },
-            Op{ name:"LDX", op: Self::LDX, addr_mode: Self::ZPY, cycles: 4 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"CLV", op: Self::CLV, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"LDA", op: Self::LDA, addr_mode: Self::ABY, cycles: 4 },
-            Op{ name:"TSX", op: Self::TSX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"LDY", op: Self::LDY, addr_mode: Self::ABX, cycles: 4 },
-            Op{ name:"LDA", op: Self::LDA, addr_mode: Self::ABX, cycles: 4 },
-            Op{ name:"LDX", op: Self::LDX, addr_mode: Self::ABY, cycles: 4 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"CPY", op: Self::CPY, addr_mode: Self::IMM, cycles: 2 },
-            Op{ name:"CMP", op: Self::CMP, addr_mode: Self::IZX, cycles: 6 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"CPY", op: Self::CPY, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"CMP", op: Self::CMP, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"DEC", op: Self::DEC, addr_mode: Self::ZP0, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 5 },
-            Op{ name:"INY", op: Self::INY, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"CMP", op: Self::CMP, addr_mode: Self::IMM, cycles: 2 },
-            Op{ name:"DEX", op: Self::DEX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"CPY", op: Self::CPY, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"CMP", op: Self::CMP, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"DEC", op: Self::DEC, addr_mode: Self::ABS, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"BNE", op: Self::BNE, addr_mode: Self::REL, cycles: 2 },
-            Op{ name:"CMP", op: Self::CMP, addr_mode: Self::IZY, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"CMP", op: Self::CMP, addr_mode: Self::ZPX, cycles: 4 },
-            Op{ name:"DEC", op: Self::DEC, addr_mode: Self::ZPX, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"CLD", op: Self::CLD, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"CMP", op: Self::CMP, addr_mode: Self::ABY, cycles: 4 },
-            Op{ name:"NOP", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"CMP", op: Self::CMP, addr_mode: Self::ABX, cycles: 4 },
-            Op{ name:"DEC", op: Self::DEC, addr_mode: Self::ABX, cycles: 7 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
-            Op{ name:"CPX", op: Self::CPX, addr_mode: Self::IMM, cycles: 2 },
-            Op{ name:"SBC", op: Self::SBC, addr_mode: Self::IZX, cycles: 6 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"CPX", op: Self::CPX, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"SBC", op: Self::SBC, addr_mode: Self::ZP0, cycles: 3 },
-            Op{ name:"INC", op: Self::INC, addr_mode: Self::ZP0, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 5 },
-            Op{ name:"INX", op: Self::INX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"SBC", op: Self::SBC, addr_mode: Self::IMM, cycles: 2 },
-            Op{ name:"NOP", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::SBC, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"CPX", op: Self::CPX, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"SBC", op: Self::SBC, addr_mode: Self::ABS, cycles: 4 },
-            Op{ name:"INC", op: Self::INC, addr_mode: Self::ABS, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"BEQ", op: Self::BEQ, addr_mode: Self::REL, cycles: 2 },
-            Op{ name:"SBC", op: Self::SBC, addr_mode: Self::IZY, cycles: 5 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 8 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"SBC", op: Self::SBC, addr_mode: Self::ZPX, cycles: 4 },
-            Op{ name:"INC", op: Self::INC, addr_mode: Self::ZPX, cycles: 6 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 6 },
-            Op{ name:"SED", op: Self::SED, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"SBC", op: Self::SBC, addr_mode: Self::ABY, cycles: 4 },
-            Op{ name:"NOP", op: Self::NOP, addr_mode: Self::IMP, cycles: 2 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
-            Op{ name:"???", op: Self::NOP, addr_mode: Self::IMP, cycles: 4 },
-            Op{ name:"SBC", op: Self::SBC, addr_mode: Self::ABX, cycles: 4 },
-            Op{ name:"INC", op: Self::INC, addr_mode: Self::ABX, cycles: 7 },
-            Op{ name:"???", op: Self::XXX, addr_mode: Self::IMP, cycles: 7 },
+            Op{ name:"BRK", op: Self::brk, addr_mode: Self::imm, cycles: 7 },
+            Op{ name:"ORA", op: Self::ora, addr_mode: Self::izx, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 3 },
+            Op{ name:"ORA", op: Self::ora, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"ASL", op: Self::asl, addr_mode: Self::zp0, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 5 },
+            Op{ name:"PHP", op: Self::php, addr_mode: Self::imp, cycles: 3 },
+            Op{ name:"ORA", op: Self::ora, addr_mode: Self::imm, cycles: 2 },
+            Op{ name:"ASL", op: Self::asl, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"ORA", op: Self::ora, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"ASL", op: Self::asl, addr_mode: Self::abs, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"BPL", op: Self::bpl, addr_mode: Self::rel, cycles: 2 },
+            Op{ name:"ORA", op: Self::ora, addr_mode: Self::izy, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"ORA", op: Self::ora, addr_mode: Self::zpx, cycles: 4 },
+            Op{ name:"ASL", op: Self::asl, addr_mode: Self::zpx, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"CLC", op: Self::clc, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"ORA", op: Self::ora, addr_mode: Self::aby, cycles: 4 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"ORA", op: Self::ora, addr_mode: Self::abx, cycles: 4 },
+            Op{ name:"ASL", op: Self::asl, addr_mode: Self::abx, cycles: 7 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
+            Op{ name:"JSR", op: Self::jsr, addr_mode: Self::abs, cycles: 6 },
+            Op{ name:"AND", op: Self::and, addr_mode: Self::izx, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"BIT", op: Self::bit, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"AND", op: Self::and, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"ROL", op: Self::rol, addr_mode: Self::zp0, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 5 },
+            Op{ name:"PLP", op: Self::plp, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"AND", op: Self::and, addr_mode: Self::imm, cycles: 2 },
+            Op{ name:"ROL", op: Self::rol, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"BIT", op: Self::bit, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"AND", op: Self::and, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"ROL", op: Self::rol, addr_mode: Self::abs, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"BMI", op: Self::bmi, addr_mode: Self::rel, cycles: 2 },
+            Op{ name:"AND", op: Self::and, addr_mode: Self::izy, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"AND", op: Self::and, addr_mode: Self::zpx, cycles: 4 },
+            Op{ name:"ROL", op: Self::rol, addr_mode: Self::zpx, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"SEC", op: Self::sec, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"AND", op: Self::and, addr_mode: Self::aby, cycles: 4 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"AND", op: Self::and, addr_mode: Self::abx, cycles: 4 },
+            Op{ name:"ROL", op: Self::rol, addr_mode: Self::abx, cycles: 7 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
+            Op{ name:"RTI", op: Self::rti, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"EOR", op: Self::eor, addr_mode: Self::izx, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 3 },
+            Op{ name:"EOR", op: Self::eor, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"LSR", op: Self::lsr, addr_mode: Self::zp0, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 5 },
+            Op{ name:"PHA", op: Self::pha, addr_mode: Self::imp, cycles: 3 },
+            Op{ name:"EOR", op: Self::eor, addr_mode: Self::imm, cycles: 2 },
+            Op{ name:"LSR", op: Self::lsr, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"JMP", op: Self::jmp, addr_mode: Self::abs, cycles: 3 },
+            Op{ name:"EOR", op: Self::eor, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"LSR", op: Self::lsr, addr_mode: Self::abs, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"BVC", op: Self::bvc, addr_mode: Self::rel, cycles: 2 },
+            Op{ name:"EOR", op: Self::eor, addr_mode: Self::izy, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"EOR", op: Self::eor, addr_mode: Self::zpx, cycles: 4 },
+            Op{ name:"LSR", op: Self::lsr, addr_mode: Self::zpx, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"CLI", op: Self::cli, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"EOR", op: Self::eor, addr_mode: Self::aby, cycles: 4 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"EOR", op: Self::eor, addr_mode: Self::abx, cycles: 4 },
+            Op{ name:"LSR", op: Self::lsr, addr_mode: Self::abx, cycles: 7 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
+            Op{ name:"RTS", op: Self::rts, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"ADC", op: Self::adc, addr_mode: Self::izx, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 3 },
+            Op{ name:"ADC", op: Self::adc, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"ROR", op: Self::ror, addr_mode: Self::zp0, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 5 },
+            Op{ name:"PLA", op: Self::pla, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"ADC", op: Self::adc, addr_mode: Self::imm, cycles: 2 },
+            Op{ name:"ROR", op: Self::ror, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"JMP", op: Self::jmp, addr_mode: Self::ind, cycles: 5 },
+            Op{ name:"ADC", op: Self::adc, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"ROR", op: Self::ror, addr_mode: Self::abs, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"BVS", op: Self::bvs, addr_mode: Self::rel, cycles: 2 },
+            Op{ name:"ADC", op: Self::adc, addr_mode: Self::izy, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"ADC", op: Self::adc, addr_mode: Self::zpx, cycles: 4 },
+            Op{ name:"ROR", op: Self::ror, addr_mode: Self::zpx, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"SEI", op: Self::sei, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"ADC", op: Self::adc, addr_mode: Self::aby, cycles: 4 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"ADC", op: Self::adc, addr_mode: Self::abx, cycles: 4 },
+            Op{ name:"ROR", op: Self::ror, addr_mode: Self::abx, cycles: 7 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"STA", op: Self::sta, addr_mode: Self::izx, cycles: 6 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"STY", op: Self::sty, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"STA", op: Self::sta, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"STX", op: Self::stx, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 3 },
+            Op{ name:"DEY", op: Self::dey, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"TXA", op: Self::txa, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"STY", op: Self::sty, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"STA", op: Self::sta, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"STX", op: Self::stx, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"BCC", op: Self::bcc, addr_mode: Self::rel, cycles: 2 },
+            Op{ name:"STA", op: Self::sta, addr_mode: Self::izy, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"STY", op: Self::sty, addr_mode: Self::zpx, cycles: 4 },
+            Op{ name:"STA", op: Self::sta, addr_mode: Self::zpx, cycles: 4 },
+            Op{ name:"STX", op: Self::stx, addr_mode: Self::zpy, cycles: 4 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"TYA", op: Self::tya, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"STA", op: Self::sta, addr_mode: Self::aby, cycles: 5 },
+            Op{ name:"TXS", op: Self::txs, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 5 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 5 },
+            Op{ name:"STA", op: Self::sta, addr_mode: Self::abx, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 5 },
+            Op{ name:"LDY", op: Self::ldy, addr_mode: Self::imm, cycles: 2 },
+            Op{ name:"LDA", op: Self::lda, addr_mode: Self::izx, cycles: 6 },
+            Op{ name:"LDX", op: Self::ldx, addr_mode: Self::imm, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"LDY", op: Self::ldy, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"LDA", op: Self::lda, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"LDX", op: Self::ldx, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 3 },
+            Op{ name:"TAY", op: Self::tay, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"LDA", op: Self::lda, addr_mode: Self::imm, cycles: 2 },
+            Op{ name:"TAX", op: Self::tax, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"LDY", op: Self::ldy, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"LDA", op: Self::lda, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"LDX", op: Self::ldx, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"BCS", op: Self::bcs, addr_mode: Self::rel, cycles: 2 },
+            Op{ name:"LDA", op: Self::lda, addr_mode: Self::izy, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 5 },
+            Op{ name:"LDY", op: Self::ldy, addr_mode: Self::zpx, cycles: 4 },
+            Op{ name:"LDA", op: Self::lda, addr_mode: Self::zpx, cycles: 4 },
+            Op{ name:"LDX", op: Self::ldx, addr_mode: Self::zpy, cycles: 4 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"CLV", op: Self::clv, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"LDA", op: Self::lda, addr_mode: Self::aby, cycles: 4 },
+            Op{ name:"TSX", op: Self::tsx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"LDY", op: Self::ldy, addr_mode: Self::abx, cycles: 4 },
+            Op{ name:"LDA", op: Self::lda, addr_mode: Self::abx, cycles: 4 },
+            Op{ name:"LDX", op: Self::ldx, addr_mode: Self::aby, cycles: 4 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"CPY", op: Self::cpy, addr_mode: Self::imm, cycles: 2 },
+            Op{ name:"CMP", op: Self::cmp, addr_mode: Self::izx, cycles: 6 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"CPY", op: Self::cpy, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"CMP", op: Self::cmp, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"DEC", op: Self::dec, addr_mode: Self::zp0, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 5 },
+            Op{ name:"INY", op: Self::iny, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"CMP", op: Self::cmp, addr_mode: Self::imm, cycles: 2 },
+            Op{ name:"DEX", op: Self::dex, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"CPY", op: Self::cpy, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"CMP", op: Self::cmp, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"DEC", op: Self::dec, addr_mode: Self::abs, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"BNE", op: Self::bne, addr_mode: Self::rel, cycles: 2 },
+            Op{ name:"CMP", op: Self::cmp, addr_mode: Self::izy, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"CMP", op: Self::cmp, addr_mode: Self::zpx, cycles: 4 },
+            Op{ name:"DEC", op: Self::dec, addr_mode: Self::zpx, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"CLD", op: Self::cld, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"CMP", op: Self::cmp, addr_mode: Self::aby, cycles: 4 },
+            Op{ name:"NOP", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"CMP", op: Self::cmp, addr_mode: Self::abx, cycles: 4 },
+            Op{ name:"DEC", op: Self::dec, addr_mode: Self::abx, cycles: 7 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
+            Op{ name:"CPX", op: Self::cpx, addr_mode: Self::imm, cycles: 2 },
+            Op{ name:"SBC", op: Self::sbc, addr_mode: Self::izx, cycles: 6 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"CPX", op: Self::cpx, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"SBC", op: Self::sbc, addr_mode: Self::zp0, cycles: 3 },
+            Op{ name:"INC", op: Self::inc, addr_mode: Self::zp0, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 5 },
+            Op{ name:"INX", op: Self::inx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"SBC", op: Self::sbc, addr_mode: Self::imm, cycles: 2 },
+            Op{ name:"NOP", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::sbc, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"CPX", op: Self::cpx, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"SBC", op: Self::sbc, addr_mode: Self::abs, cycles: 4 },
+            Op{ name:"INC", op: Self::inc, addr_mode: Self::abs, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"BEQ", op: Self::beq, addr_mode: Self::rel, cycles: 2 },
+            Op{ name:"SBC", op: Self::sbc, addr_mode: Self::izy, cycles: 5 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 8 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"SBC", op: Self::sbc, addr_mode: Self::zpx, cycles: 4 },
+            Op{ name:"INC", op: Self::inc, addr_mode: Self::zpx, cycles: 6 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 6 },
+            Op{ name:"SED", op: Self::sed, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"SBC", op: Self::sbc, addr_mode: Self::aby, cycles: 4 },
+            Op{ name:"NOP", op: Self::nop, addr_mode: Self::imp, cycles: 2 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
+            Op{ name:"???", op: Self::nop, addr_mode: Self::imp, cycles: 4 },
+            Op{ name:"SBC", op: Self::sbc, addr_mode: Self::abx, cycles: 4 },
+            Op{ name:"INC", op: Self::inc, addr_mode: Self::abx, cycles: 7 },
+            Op{ name:"???", op: Self::xxx, addr_mode: Self::imp, cycles: 7 },
         ]
     } 
 }
