@@ -3,15 +3,17 @@ use crate::nes::Nes;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[derive(Debug)]
+//#[derive(Debug)]
 pub struct Ppu {
-    memory: [u8; 0x8]
+    memory: [u8; 0x8],
+    nes:  Rc<RefCell<Nes>>,
 }
 
 impl Ppu {
     pub fn new(nes: Rc<RefCell<Nes>>) -> Self {
         Self {
-            memory: [0; 0x8]
+            memory: [0xff; 0x8],
+            nes: nes
         }
     }
 }

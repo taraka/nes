@@ -140,7 +140,7 @@ impl <'a> Cpu <'a> {
         let lsb = self.pop() as u16;
         let msb = self.pop() as u16;
 
-        return msb << 8 + lsb;
+        return (msb << 8) + lsb;
     }
 
     fn irq(&mut self) {
@@ -281,7 +281,7 @@ impl <'a> Cpu <'a> {
         let lsb = self.read(addr + self.x as u16) as u16;
         let msb = self.read(addr + self.x as u16 + 1) as u16;
 
-        AddrModeResult::Abs(msb << 8 + lsb, 0)
+        AddrModeResult::Abs((msb << 8) + lsb, 0)
     }
 
     fn izy(&mut self) -> AddrModeResult {
@@ -369,9 +369,13 @@ impl <'a> Cpu <'a> {
         let mut cycles = 0;
         if !self.get_flag(Flag::C) {
             cycles += 1;
-
+            println!("{:#04x}", self.pc);
             let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
+                AddrModeResult::Rel(addr_rel) => {
+                    println!("{}", addr_rel);
+                    (addr_rel as i32 + self.pc as i32) as u16
+            
+            },
                 _ => panic!("Branch must use Rel Addressing"),
             };
             
@@ -380,6 +384,7 @@ impl <'a> Cpu <'a> {
             }
 
             self.pc = addr;
+            println!("{:#04x}", self.pc);
         }
 
         return cycles;
@@ -619,12 +624,7 @@ impl <'a> Cpu <'a> {
 
         self.set_flag(Flag::Z, result == 0x00);
         self.set_flag(Flag::N, result & 0x80 != 0x00);
-        
-        match amr {
-            AddrModeResult::Abs(addr, _) => self.write(addr, result),
-            _ => panic!("Branch must use Rel Addressing"),
-        };
-        
+        self.x = result;
         return self.additional_cycles(&amr, 0);
     }
 
@@ -926,6 +926,7 @@ impl <'a> Cpu <'a> {
     }
 
     fn xxx(&mut self, amr: AddrModeResult) -> u8 {
+        panic!("Unknown opcode as: {:#04x}", self.pc);
         self.additional_cycles(&amr, 0)
     }
 

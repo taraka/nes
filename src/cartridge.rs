@@ -88,7 +88,21 @@ impl Cartridge {
             _ => panic!("Unknown mapper id: {}", header.mapper_id)
         }
     }
+    
+    fn ppu_read(&mut self, addr: u16) -> Option<u8> {
+        if let Some(a) = self.mapper.read(addr) {
+            //println!("Reading: {:#04x}, {}", a, self.prg_mem[a as usize]);
+            return Some(self.chr_mem[a as usize]);
+        }
+        None
+    }
 
+    fn ppu_write(&mut self, addr: u16, data: u8) {
+        if let Some(a) = self.mapper.write(addr, data) {
+            //println!("Reading: {:#04x}, {}", a, self.prg_mem[a as usize]);
+            //self.chr_mem[a as usize]);
+        }
+    }
 
 }
 
