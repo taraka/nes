@@ -187,6 +187,11 @@ impl <'a> Cpu <'a> {
         self.status & f as u8 != 0
     }
 
+    fn set_nz(&mut self, value: u8) {
+        self.set_flag(Flag::Z, value == 0);
+        self.set_flag(Flag::N, value & 80 != 0);
+    }
+
     // Address modes
     fn imp(&mut self) -> AddrModeResult {
         AddrModeResult::Imp()
@@ -264,7 +269,6 @@ impl <'a> Cpu <'a> {
         self.pc +=1;
         let ptr = (ptr_msb << 8) + ptr_lsb;
 
-
         // Check for Bug
         if ptr_lsb == 0x00ff {
             AddrModeResult::Abs(((self.read(ptr & 0xff00) as u16) << 8) + self.read(ptr) as u16, 0)
@@ -310,6 +314,13 @@ impl <'a> Cpu <'a> {
         AddrModeResult::Rel(i8::from_be_bytes([addr]))
     }
 
+    fn get_rel_addr(&self, amr: AddrModeResult) -> u16 { 
+        match amr {
+            AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
+            _ => panic!("Branch must use Rel Addressing"),
+        }
+    }
+
     fn fetch(&mut self, amr: &AddrModeResult) -> u8 {
         match amr {
             AddrModeResult::Imp() => self.a,
@@ -329,8 +340,7 @@ impl <'a> Cpu <'a> {
     // Operations
     fn and(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.a & self.fetch(&amr);
-        self.set_flag(Flag::Z, self.a == 0);
-        self.set_flag(Flag::N, self.a & 80 != 0);
+        self.set_nz(self.a);
         return self.additional_cycles(&amr, 1);
     }
 
@@ -340,8 +350,7 @@ impl <'a> Cpu <'a> {
         let (result, overflow2) = temp.overflowing_add(self.get_flag(Flag::C) as u8);
 
         self.set_flag(Flag::C, overflow1 || overflow2);
-        self.set_flag(Flag::Z, result == 0);
-        self.set_flag(Flag::N, result & 80 != 0);
+        self.set_nz(result);
         self.set_flag(Flag::V, (!(self.a ^ rhs) & (self.a ^ result)) & 0x80 != 0);
 
         self.a = result;
@@ -353,8 +362,7 @@ impl <'a> Cpu <'a> {
         let (temp, overflow) = self.fetch(&amr).overflowing_shl(1);
 
         self.set_flag(Flag::C, overflow);
-        self.set_flag(Flag::Z, temp == 0);
-        self.set_flag(Flag::N, temp & 80 != 0);
+        self.set_nz(temp);
 
         match amr {
             AddrModeResult::Imp() => self.a = temp,
@@ -365,137 +373,74 @@ impl <'a> Cpu <'a> {
         return self.additional_cycles(&amr, 0);
     }
 
-    fn bcc(&mut self, amr: AddrModeResult) -> u8 {
-        let mut cycles = 0;
-        if !self.get_flag(Flag::C) {
+    fn take_branch(&mut self, amr: AddrModeResult) -> u8 {
+        let mut cycles = 1;
+        println!("{:#04x}", self.pc);
+        let addr = self.get_rel_addr(amr);
+        
+        if addr & 0xff00 != self.pc & 0xff00 {
             cycles += 1;
-            println!("{:#04x}", self.pc);
-            let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => {
-                    println!("{}", addr_rel);
-                    (addr_rel as i32 + self.pc as i32) as u16
-            
-            },
-                _ => panic!("Branch must use Rel Addressing"),
-            };
-            
-            if addr & 0xff00 != self.pc & 0xff00 {
-                cycles += 1;
-            }
-
-            self.pc = addr;
-            println!("{:#04x}", self.pc);
         }
 
+        self.pc = addr;
+        println!("{:#04x}", self.pc);
+
         return cycles;
+    }
+
+    fn bcc(&mut self, amr: AddrModeResult) -> u8 {
+        if !self.get_flag(Flag::C) {
+            return self.take_branch(amr);
+        }
+
+        return 0;
     }
 
     fn bcs(&mut self, amr: AddrModeResult) -> u8 {
-        let mut cycles = 0;
         if self.get_flag(Flag::C) {
-            cycles += 1;
-
-            let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
-                _ => panic!("Branch must use Rel Addressing"),
-            };
-            
-            if addr & 0xff00 != self.pc & 0xff00 {
-                cycles += 1;
-            }
-
-            self.pc = addr;
+            return self.take_branch(amr);
         }
 
-        return cycles;
+        return 0;
     }
 
     fn beq(&mut self, amr: AddrModeResult) -> u8 {
-        let mut cycles = 0;
         if self.get_flag(Flag::Z) {
-            cycles += 1;
-
-            let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
-                _ => panic!("Branch must use Rel Addressing"),
-            };
-            
-            if addr & 0xff00 != self.pc & 0xff00 {
-                cycles += 1;
-            }
-
-            self.pc = addr;
+            return self.take_branch(amr);
         }
 
-        return cycles;
+        return 0;
     }
 
     fn bit(&mut self, amr: AddrModeResult) -> u8 {
         let temp = self.fetch(&amr) & self.a;
-        self.set_flag(Flag::Z, temp == 0x00);
-        self.set_flag(Flag::N, temp  & (1<<7)!= 0x00);
+        self.set_nz(temp);
         self.set_flag(Flag::V, temp  & (1<<6) != 0x00);
         return self.additional_cycles(&amr, 0);
     }
 
     fn bmi(&mut self, amr: AddrModeResult) -> u8 {
-        let mut cycles = 0;
         if self.get_flag(Flag::N) {
-            cycles += 1;
-
-            let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
-                _ => panic!("Branch must use Rel Addressing"),
-            };
-            
-            if addr & 0xff00 != self.pc & 0xff00 {
-                cycles += 1;
-            }
-
-            self.pc = addr;
+            return self.take_branch(amr);
         }
 
-        return cycles;
+        return 0;
     }
 
     fn bne(&mut self, amr: AddrModeResult) -> u8 {
-        let mut cycles = 0;
         if !self.get_flag(Flag::Z) {
-            cycles += 1;
-
-            let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
-                _ => panic!("Branch must use Rel Addressing"),
-            };
-            
-            if addr & 0xff00 != self.pc & 0xff00 {
-                cycles += 1;
-            }
-
-            self.pc = addr;
+            return self.take_branch(amr);
         }
 
-        return cycles;
+        return 0;
     }
 
     fn bpl(&mut self, amr: AddrModeResult) -> u8 {
-        let mut cycles = 0;
         if !self.get_flag(Flag::N) {
-            cycles += 1;
-
-            let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
-                _ => panic!("Branch must use Rel Addressing"),
-            };
-            
-            if addr & 0xff00 != self.pc & 0xff00 {
-                cycles += 1;
-            }
-
-            self.pc = addr;
+            return self.take_branch(amr);
         }
 
-        return cycles;
+        return 0;
     }
 
     fn brk(&mut self, amr: AddrModeResult) -> u8 {
@@ -519,43 +464,19 @@ impl <'a> Cpu <'a> {
     }
 
     fn bvc(&mut self, amr: AddrModeResult) -> u8 {
-        let mut cycles = 0;
         if !self.get_flag(Flag::V) {
-            cycles += 1;
-
-            let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
-                _ => panic!("Branch must use Rel Addressing"),
-            };
-            
-            if addr & 0xff00 != self.pc & 0xff00 {
-                cycles += 1;
-            }
-
-            self.pc = addr;
+            return self.take_branch(amr);
         }
 
-        return cycles;
+        return 0;
     }
 
     fn bvs(&mut self, amr: AddrModeResult) -> u8 {
-        let mut cycles = 0;
         if self.get_flag(Flag::V) {
-            cycles += 1;
-
-            let addr = match amr {
-                AddrModeResult::Rel(addr_rel) => (addr_rel as i32 + self.pc as i32) as u16,
-                _ => panic!("Branch must use Rel Addressing"),
-            };
-            
-            if addr & 0xff00 != self.pc & 0xff00 {
-                cycles += 1;
-            }
-
-            self.pc = addr;
+            return self.take_branch(amr);
         }
 
-        return cycles;
+        return 0;
     }
 
     fn clc(&mut self, amr: AddrModeResult) -> u8 {
@@ -612,8 +533,7 @@ impl <'a> Cpu <'a> {
 
         let (result, _overflow) = self.fetch(&amr).overflowing_sub(1);
 
-        self.set_flag(Flag::Z, result == 0x00);
-        self.set_flag(Flag::N, result & 0x80 != 0x00);
+        self.set_nz(result);
         self.x = result;
         return self.additional_cycles(&amr, 0);
     }
@@ -622,8 +542,7 @@ impl <'a> Cpu <'a> {
 
         let (result, _overflow) = self.x.overflowing_sub(1);
 
-        self.set_flag(Flag::Z, result == 0x00);
-        self.set_flag(Flag::N, result & 0x80 != 0x00);
+        self.set_nz(result);
         self.x = result;
         return self.additional_cycles(&amr, 0);
     }
@@ -632,8 +551,7 @@ impl <'a> Cpu <'a> {
 
         let (result, _overflow) = self.y.overflowing_sub(1);
 
-        self.set_flag(Flag::Z, result == 0x00);
-        self.set_flag(Flag::N, result & 0x80 != 0x00);
+        self.set_nz(result);
         self.y = result;
         return self.additional_cycles(&amr, 0);
     }
@@ -641,8 +559,7 @@ impl <'a> Cpu <'a> {
     fn eor(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.fetch(&amr) ^ self.a;
 
-        self.set_flag(Flag::Z, self.a == 0x00);
-        self.set_flag(Flag::N, self.a & 0x80 != 0x00);
+        self.set_nz(self.a);
 
         return self.additional_cycles(&amr, 1);
     }
@@ -665,8 +582,7 @@ impl <'a> Cpu <'a> {
 
         let (result, _overflow) = self.x.overflowing_add(1);
 
-        self.set_flag(Flag::Z, result == 0x00);
-        self.set_flag(Flag::N, result & 0x80 != 0x00);
+        self.set_nz(result);
         self.x = result;
         return self.additional_cycles(&amr, 0);
     }
@@ -675,8 +591,7 @@ impl <'a> Cpu <'a> {
 
         let (result, _overflow) = self.y.overflowing_add(1);
 
-        self.set_flag(Flag::Z, result == 0x00);
-        self.set_flag(Flag::N, result & 0x80 != 0x00);
+        self.set_nz(result);
         self.y = result;
         return self.additional_cycles(&amr, 0);
     }
@@ -705,22 +620,19 @@ impl <'a> Cpu <'a> {
 
     fn lda(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.fetch(&amr);
-        self.set_flag(Flag::Z, self.a == 0x00);
-        self.set_flag(Flag::N, self.a & 0x80 != 0x00);
+        self.set_nz(self.a);
         return self.additional_cycles(&amr, 0);
     }
 
     fn ldx(&mut self, amr: AddrModeResult) -> u8 {
         self.x = self.fetch(&amr);
-        self.set_flag(Flag::Z, self.x == 0x00);
-        self.set_flag(Flag::N, self.x & 0x80 != 0x00);
+        self.set_nz(self.x);
         return self.additional_cycles(&amr, 0);
     }
 
     fn ldy(&mut self, amr: AddrModeResult) -> u8 {
         self.y = self.fetch(&amr);
-        self.set_flag(Flag::Z, self.y == 0x00);
-        self.set_flag(Flag::N, self.y & 0x80 != 0x00);
+        self.set_nz(self.y);
         return self.additional_cycles(&amr, 0);
     }
 
@@ -730,8 +642,7 @@ impl <'a> Cpu <'a> {
 
         let (temp, _overflow) = fetched.overflowing_shr(1);
 
-        self.set_flag(Flag::Z, temp == 0);
-        self.set_flag(Flag::N, temp & 80 != 0);
+        self.set_nz(temp);
 
         match amr {
             AddrModeResult::Imp() => self.a = temp,
@@ -749,8 +660,7 @@ impl <'a> Cpu <'a> {
 
     fn ora(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.a | self.fetch(&amr);
-        self.set_flag(Flag::Z, self.a == 0x00);
-        self.set_flag(Flag::N, self.a & 0x80 != 0);
+        self.set_nz(self.a);
         return self.additional_cycles(&amr, 0);
     }
 
@@ -769,8 +679,7 @@ impl <'a> Cpu <'a> {
     fn pla(&mut self, amr: AddrModeResult) -> u8 {
         
         self.a = self.pop();
-        self.set_flag(Flag::Z, self.a == 0x00);
-        self.set_flag(Flag::N, self.a & 0x80 != 0);
+        self.set_nz(self.a);
         return self.additional_cycles(&amr, 0);
     }
 
@@ -786,8 +695,7 @@ impl <'a> Cpu <'a> {
         let result = temp | self.get_flag(Flag::C) as u8;
 
         self.set_flag(Flag::C, overflow);
-        self.set_flag(Flag::Z, result == 0);
-        self.set_flag(Flag::N, result & 80 != 0);
+        self.set_nz(result);
 
         match amr {
             AddrModeResult::Imp() => self.a = result,
@@ -804,8 +712,7 @@ impl <'a> Cpu <'a> {
         let result = temp | ((self.get_flag(Flag::C) as u8) << 7);
 
         self.set_flag(Flag::C, overflow);
-        self.set_flag(Flag::Z, result == 0);
-        self.set_flag(Flag::N, result & 80 != 0);
+        self.set_nz(result);
 
         match amr {
             AddrModeResult::Imp() => self.a = result,
@@ -852,8 +759,7 @@ impl <'a> Cpu <'a> {
         let (result, overflow2) = temp.overflowing_add(self.get_flag(Flag::C) as u8);
 
         self.set_flag(Flag::C, overflow1 || overflow2);
-        self.set_flag(Flag::Z, result == 0);
-        self.set_flag(Flag::N, result & 80 != 0);
+        self.set_nz(result);
         self.set_flag(Flag::V, (!(self.a ^ rhs) & (self.a ^ result)) & 0x80 != 0);
 
         self.a = result;
@@ -887,29 +793,25 @@ impl <'a> Cpu <'a> {
 
     fn tax(&mut self, amr: AddrModeResult) -> u8 {
         self.x = self.a;
-        self.set_flag(Flag::Z, self.x == 0x00);
-        self.set_flag(Flag::N, self.x & 0x80 != 0x00);
+        self.set_nz(self.x);
         return self.additional_cycles(&amr, 0);
     }
 
     fn tay(&mut self, amr: AddrModeResult) -> u8 {
         self.y = self.a;
-        self.set_flag(Flag::Z, self.y == 0x00);
-        self.set_flag(Flag::N, self.y & 0x80 != 0x00);
+        self.set_nz(self.y);
         return self.additional_cycles(&amr, 0);
     }
 
     fn tsx(&mut self, amr: AddrModeResult) -> u8 {
         self.x = self.sp;
-        self.set_flag(Flag::Z, self.x == 0x00);
-        self.set_flag(Flag::N, self.x & 0x80 != 0x00);
+        self.set_nz(self.x);
         return self.additional_cycles(&amr, 0);
     }
 
     fn txa(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.x;
-        self.set_flag(Flag::Z, self.a == 0x00);
-        self.set_flag(Flag::N, self.a & 0x80 != 0x00);
+        self.set_nz(self.a);
         return self.additional_cycles(&amr, 0);
     }
 
@@ -920,8 +822,7 @@ impl <'a> Cpu <'a> {
 
     fn tya(&mut self, amr: AddrModeResult) -> u8 {
         self.a = self.y;
-        self.set_flag(Flag::Z, self.a == 0x00);
-        self.set_flag(Flag::N, self.a & 0x80 != 0x00);
+        self.set_nz(self.a);
         return self.additional_cycles(&amr, 0);
     }
 
