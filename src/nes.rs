@@ -15,6 +15,7 @@ pub struct Nes <'a> {
     cpu:  Rc<RefCell<Cpu<'a>>>,
     ppu:  Rc<RefCell<Ppu>>,
     cartridge: Option<Rc<RefCell<Cartridge>>>,
+    clock_count: u64,
 }
 
 
@@ -45,6 +46,7 @@ impl Nes <'_> {
             ppu: ppu,
             bus: bus,
             cartridge: None,
+            clock_count: 0,
         }
     }
 
@@ -55,7 +57,11 @@ impl Nes <'_> {
     }
 
     pub fn clock(&mut self) {
-        self.cpu.borrow_mut().clock();
+        self.ppu.borrow_mut().clock();
+        if self.clock_count % 3 == 0 {
+            self.cpu.borrow_mut().clock();
+        }
+        self.clock_count += 1;
     }
 
     pub fn reset(&mut self) {
