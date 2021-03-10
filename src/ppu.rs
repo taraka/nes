@@ -1,19 +1,25 @@
 use crate::nes::BusDevice;
-use crate::nes::Nes;
+use crate::nes::Bus;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 //#[derive(Debug)]
 pub struct Ppu {
     memory: [u8; 0x8],
-    nes:  Rc<RefCell<Nes>>,
+    bus:  Rc<RefCell<Bus>>,
+    scanline: i16,
+    cycle: u16,
+    frame_complete: bool,
 }
 
 impl Ppu {
-    pub fn new(nes: Rc<RefCell<Nes>>) -> Self {
+    pub fn new(bus: Rc<RefCell<Bus>>) -> Self {
         Self {
             memory: [0xff; 0x8],
-            nes: nes
+            bus: bus,
+            cycle: 0,
+            scanline: -1,
+            frame_complete: false,
         }
     }
 }
