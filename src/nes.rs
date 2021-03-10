@@ -14,7 +14,7 @@ pub struct Nes <'a> {
     bus: Rc<RefCell<Bus>>,
     cpu:  Rc<RefCell<Cpu<'a>>>,
     ppu:  Rc<RefCell<Ppu>>,
-    cartridge: Option<Cartridge>
+    cartridge: Option<Rc<RefCell<Cartridge>>>,
 }
 
 
@@ -49,7 +49,9 @@ impl Nes <'_> {
     }
 
     pub fn insert(&mut self, cartridge: Cartridge) {
-        self.bus.borrow_mut().connect(Rc::new(RefCell::new(cartridge)));
+        let cartridge = Rc::new(RefCell::new(cartridge));
+        self.bus.borrow_mut().connect(cartridge.clone());
+        self.cartridge = Some(cartridge);
     }
 
     pub fn clock(&mut self) {
